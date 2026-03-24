@@ -112,17 +112,30 @@ export default function PerfilProveedorPage() {
 
       if (providerError) throw providerError
 
+      // Guardar comunas
       const zonasData = comunas.map(comuna => ({
         provider_id: providerProfile.id,
         comuna,
         region: 'Región Metropolitana'
       }))
-
       const { error: zonasError } = await supabase
         .from('provider_zones')
         .insert(zonasData)
-
       if (zonasError) throw zonasError
+
+      // Guardar categorías en services
+      const serviciosData = categorias.map(category_id => ({
+        provider_id: providerProfile.id,
+        category_id,
+        title: CATEGORIAS.find(c => c.id === category_id)?.name ?? '',
+        description: bio,
+        price_clp: price ? parseInt(price) : null,
+        active: false
+      }))
+      const { error: serviciosError } = await supabase
+        .from('services')
+        .insert(serviciosData)
+      if (serviciosError) throw serviciosError
 
       setSuccess(true)
     } catch (err: any) {
@@ -191,11 +204,9 @@ export default function PerfilProveedorPage() {
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '6px' }}>
                   Correo electrónico <span style={{ fontSize: '11px', color: '#1dbf73', fontWeight: '400' }}>✓ verificado</span>
                 </label>
-                <div style={{ position: 'relative' }}>
-                  <input type="email" value={email} readOnly
-                    style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '14px', color: '#888', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: '#f9f9f9', cursor: 'not-allowed' }}
-                  />
-                </div>
+                <input type="email" value={email} readOnly
+                  style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '14px', color: '#888', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: '#f9f9f9', cursor: 'not-allowed' }}
+                />
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '6px' }}>RUT <span style={{ color: '#e53935' }}>*</span></label>
