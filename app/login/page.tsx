@@ -111,25 +111,21 @@ export default function LoginPage() {
                 {mode === 'register' && (
                   <div style={{ marginBottom: '1rem' }}>
                     <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '6px' }}>
-                      Nombre completo
+                      Nombre completo <span style={{ color: '#e53935' }}>*</span>
                     </label>
                     <input type="text" value={name} onChange={e => setName(e.target.value)}
-                      placeholder="Tu nombre" required
+                      placeholder="Tu nombre completo" required
                       style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '14px', color: '#222', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                      onFocus={e => e.target.style.borderColor = '#1dbf73'}
-                      onBlur={e => e.target.style.borderColor = '#ddd'}
                     />
                   </div>
                 )}
                 <div style={{ marginBottom: '1rem' }}>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '6px' }}>
-                    Correo electrónico
+                    Correo electrónico <span style={{ color: '#e53935' }}>*</span>
                   </label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)}
                     placeholder="tu@email.com" required
                     style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '14px', color: '#222', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    onFocus={e => e.target.style.borderColor = '#1dbf73'}
-                    onBlur={e => e.target.style.borderColor = '#ddd'}
                   />
                 </div>
                 {error && <p style={{ color: '#e53935', fontSize: '13px', margin: '0 0 1rem' }}>{error}</p>}

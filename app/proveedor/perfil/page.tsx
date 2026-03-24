@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { validarRut, formatearRut } from '@/lib/utils/validators'
 
@@ -32,24 +32,33 @@ export default function PerfilProveedorPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  // Paso 1
   const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
   const [rut, setRut] = useState('')
   const [rutError, setRutError] = useState('')
   const [phone, setPhone] = useState('')
 
-  // Paso 2
   const [categorias, setCategorias] = useState<string[]>([])
   const [bio, setBio] = useState('')
   const [price, setPrice] = useState('')
 
-  // Paso 3
   const [comunas, setComunas] = useState<string[]>([])
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  useEffect(() => {
+    async function loadUser() {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        setEmail(user.email ?? '')
+        setFullName(user.user_metadata?.full_name ?? '')
+      }
+    }
+    loadUser()
+  }, [])
 
   function handleRutChange(e: React.ChangeEvent<HTMLInputElement>) {
     const valor = e.target.value
@@ -177,6 +186,16 @@ export default function PerfilProveedorPage() {
                 <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Tu nombre completo"
                   style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '14px', color: '#222', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
                 />
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '6px' }}>
+                  Correo electrónico <span style={{ fontSize: '11px', color: '#1dbf73', fontWeight: '400' }}>✓ verificado</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input type="email" value={email} readOnly
+                    style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '14px', color: '#888', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', background: '#f9f9f9', cursor: 'not-allowed' }}
+                  />
+                </div>
               </div>
               <div style={{ marginBottom: '1rem' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '6px' }}>RUT <span style={{ color: '#e53935' }}>*</span></label>
