@@ -137,6 +137,7 @@ export default function PerfilProveedorPage() {
         .insert(serviciosData)
       if (serviciosError) throw serviciosError
 
+      await fetch("/api/notifications", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo: "nueva_solicitud", email: "", nombre: fullName }) })
       setSuccess(true)
     } catch (err: any) {
       setError('Hubo un error al guardar. Intenta nuevamente.')

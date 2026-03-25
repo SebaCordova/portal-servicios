@@ -65,17 +65,27 @@ export default function AdminPage() {
     setLoading(false)
   }
 
+  async function enviarNotificacion(tipo: string, email: string, nombre: string) {
+    await fetch('/api/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo, email, nombre })
+    })
+  }
+
   async function aprobar(proveedor: Proveedor) {
     setAccionando(proveedor.id)
     await supabase.from('provider_profiles').update({ verified: true }).eq('id', proveedor.id)
     await supabase.from('profiles').update({ is_provider: true }).eq('id', proveedor.profile_id)
     await supabase.from('services').update({ active: true }).eq('provider_id', proveedor.id)
+    await enviarNotificacion('aprobacion', proveedor.profiles.email, proveedor.profiles.full_name)
     await cargarProveedores()
     setAccionando(null)
   }
 
   async function rechazar(proveedor: Proveedor) {
     setAccionando(proveedor.id)
+    await enviarNotificacion('rechazo', proveedor.profiles.email, proveedor.profiles.full_name)
     await supabase.from('services').delete().eq('provider_id', proveedor.id)
     await supabase.from('provider_zones').delete().eq('provider_id', proveedor.id)
     await supabase.from('provider_profiles').delete().eq('id', proveedor.id)

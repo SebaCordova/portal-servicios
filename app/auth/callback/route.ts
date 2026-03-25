@@ -5,7 +5,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const redirectTo = searchParams.get('redirectTo') ?? '/cliente'
 
   if (code) {
     const cookieStore = await cookies()
@@ -23,8 +22,38 @@ export async function GET(request: NextRequest) {
         },
       }
     )
+
     await supabase.auth.exchangeCodeForSession(code)
+
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('is_admin, is_provider')
+        .eq('auth_user_id', user.id)
+        .single()
+
+      if (profile?.is_admin) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
+
+      if (profile?.is_provider) {
+        return NextResponse.redirect(new URL('/proveedor', request.url))
+      }
+
+      // Verificar si tiene perfil proveedor pendiente
+      const { data: providerProfile } = await supabase
+        .from('provider_profiles')
+        .select('id, verified')
+        .eq('profile_id', (await supabase.from('profiles').select('id').eq('auth_user_id', user.id).single()).data?.id)
+        .single()
+
+      if (providerProfile && !providerProfile.verified) {
+        return NextResponse.redirect(new URL('/proveedor/perfil', request.url))
+      }
+    }
   }
 
-  return NextResponse.redirect(new URL(redirectTo, request.url))
+  return NextResponse.redirect(new URL('/', request.url))
 }
