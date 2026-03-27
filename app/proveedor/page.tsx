@@ -5,21 +5,15 @@ import { createBrowserClient } from '@supabase/ssr'
 
 type Solicitud = {
   id: string
-  descripcion: string
   comuna: string
-  fecha_disponible: string
+  descripcion: string
+  fecha_inicio: string
+  fecha_fin: string
+  estado: string
+  calle: string
+  numero: string
   created_at: string
-  categoria: string
-  cliente: string
-}
-
-type Trabajo = {
-  id: string
-  descripcion: string
-  comuna: string
-  fecha: string
-  cliente: string
-  precio: number
+  categories: { name: string }
 }
 
 type Indicadores = {
@@ -32,12 +26,9 @@ type Indicadores = {
 export default function ProveedorPage() {
   const [loading, setLoading] = useState(true)
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
-  const [trabajos, setTrabajos] = useState<Trabajo[]>([])
+  const [trabajos, setTrabajos] = useState<any[]>([])
   const [indicadores, setIndicadores] = useState<Indicadores>({
-    trabajosRealizados: 0,
-    gananciasMes: 0,
-    rating: 0,
-    totalReviews: 0
+    trabajosRealizados: 0, gananciasMes: 0, rating: 0, totalReviews: 0
   })
   const [providerName, setProviderName] = useState('')
 
@@ -58,7 +49,6 @@ export default function ProveedorPage() {
         .single()
 
       if (!profile?.is_provider) { window.location.href = '/'; return }
-
       setProviderName(profile.full_name?.split(' ')[0] ?? 'Proveedor')
 
       const { data: pp } = await supabase
@@ -67,18 +57,50 @@ export default function ProveedorPage() {
         .eq('profile_id', profile.id)
         .single()
 
-      if (pp) {
-        setIndicadores(prev => ({
-          ...prev,
-          rating: pp.rating_avg ?? 0,
-          totalReviews: pp.total_reviews ?? 0
-        }))
+      if (!pp) { setLoading(false); return }
+
+      setIndicadores(prev => ({
+        ...prev,
+        rating: pp.rating_avg ?? 0,
+        totalReviews: pp.total_reviews ?? 0
+      }))
+
+      // Obtener comunas y categorías del proveedor
+      const { data: zones } = await supabase
+        .from('provider_zones')
+        .select('comuna')
+        .eq('provider_id', pp.id)
+
+      const { data: services } = await supabase
+        .from('services')
+        .select('category_id')
+        .eq('provider_id', pp.id)
+        .eq('active', true)
+
+      const comunas = zones?.map(z => z.comuna) ?? []
+      const categoryIds = services?.map(s => s.category_id) ?? []
+
+      // Buscar solicitudes que coincidan
+      if (comunas.length > 0 && categoryIds.length > 0) {
+        const { data: solicitudesData } = await supabase
+          .from('solicitudes')
+          .select('id, comuna, descripcion, fecha_inicio, fecha_fin, estado, calle, numero, created_at, categories ( name )')
+          .eq('estado', 'abierta')
+          .in('comuna', comunas)
+          .in('category_id', categoryIds)
+          .order('created_at', { ascending: false })
+
+        setSolicitudes(solicitudesData ?? [])
       }
 
       setLoading(false)
     }
     loadData()
   }, [])
+
+  function formatFecha(fecha: string) {
+    return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long' })
+  }
 
   if (loading) {
     return (
@@ -97,9 +119,7 @@ export default function ProveedorPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#222', margin: '0 0 4px' }}>
             Hola, {providerName} 👋
           </h1>
-          <p style={{ fontSize: '14px', color: '#888', margin: 0 }}>
-            Aquí está el resumen de tu actividad
-          </p>
+          <p style={{ fontSize: '14px', color: '#888', margin: 0 }}>Aquí está el resumen de tu actividad</p>
         </div>
 
         {/* Sección 1 — Solicitudes pendientes */}
@@ -114,6 +134,7 @@ export default function ProveedorPage() {
               )}
             </h2>
           </div>
+
           {solicitudes.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '2.5rem', textAlign: 'center' }}>
               <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>📋</div>
@@ -125,18 +146,28 @@ export default function ProveedorPage() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {solicitudes.map(s => (
-                <div key={s.id} style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div key={s.id} style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
                     <div>
-                      <p style={{ fontSize: '15px', fontWeight: '600', color: '#222', margin: '0 0 4px' }}>{s.categoria}</p>
-                      <p style={{ fontSize: '13px', color: '#888', margin: '0 0 2px' }}>{s.comuna} · {s.fecha_disponible}</p>
-                      <p style={{ fontSize: '13px', color: '#555', margin: '0 0 2px' }}>{s.descripcion}</p>
-                      <p style={{ fontSize: '12px', color: '#aaa', margin: 0 }}>Cliente: {s.cliente}</p>
+                      <p style={{ fontSize: '15px', fontWeight: '700', color: '#222', margin: '0 0 4px' }}>{s.categories?.name}</p>
+                      <p style={{ fontSize: '13px', color: '#888', margin: '0 0 2px' }}>📍 {s.calle} {s.numero}, {s.comuna}</p>
+                      <p style={{ fontSize: '13px', color: '#888', margin: 0 }}>
+                        📅 {formatFecha(s.fecha_inicio)} → {formatFecha(s.fecha_fin)}
+                      </p>
                     </div>
-                    <button style={{ padding: '8px 16px', background: '#1dbf73', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                      Enviar propuesta
-                    </button>
+                    <span style={{ fontSize: '12px', color: '#92400e', background: '#fef3c7', padding: '4px 10px', borderRadius: '20px', whiteSpace: 'nowrap' }}>Nueva</span>
                   </div>
+
+                  <div style={{ background: '#f9f9f9', borderRadius: '8px', padding: '10px 12px', marginBottom: '1rem' }}>
+                    <p style={{ fontSize: '12px', color: '#888', margin: '0 0 4px', fontWeight: '500' }}>DETALLE</p>
+                    <p style={{ fontSize: '13px', color: '#555', margin: 0, lineHeight: '1.5', whiteSpace: 'pre-line' }}>{s.descripcion}</p>
+                  </div>
+
+                  <button
+                    onClick={() => window.location.href = `/proveedor/propuesta/${s.id}`}
+                    style={{ width: '100%', padding: '10px', background: '#1dbf73', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Enviar propuesta
+                  </button>
                 </div>
               ))}
             </div>
@@ -145,38 +176,12 @@ export default function ProveedorPage() {
 
         {/* Sección 2 — Trabajos pendientes */}
         <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>
-            Trabajos pendientes de realizar
-            {trabajos.length > 0 && (
-              <span style={{ background: '#dbeafe', color: '#1e40af', fontSize: '12px', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>
-                {trabajos.length}
-              </span>
-            )}
-          </h2>
-          {trabajos.length === 0 ? (
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '2.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>🔧</div>
-              <p style={{ fontSize: '15px', fontWeight: '600', color: '#222', margin: '0 0 4px' }}>No tienes trabajos agendados</p>
-              <p style={{ fontSize: '13px', color: '#888', margin: 0 }}>
-                Cuando un cliente acepte tu propuesta, el trabajo aparecerá aquí.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {trabajos.map(t => (
-                <div key={t.id} style={{ background: '#fff', borderRadius: '10px', border: '1.5px solid #1dbf73', padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <p style={{ fontSize: '15px', fontWeight: '600', color: '#222', margin: '0 0 4px' }}>{t.descripcion}</p>
-                      <p style={{ fontSize: '13px', color: '#888', margin: '0 0 2px' }}>{t.comuna} · {t.fecha}</p>
-                      <p style={{ fontSize: '13px', color: '#1dbf73', fontWeight: '600', margin: 0 }}>${t.precio.toLocaleString('es-CL')}</p>
-                    </div>
-                    <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '20px' }}>Confirmado</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>Trabajos pendientes de realizar</h2>
+          <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '2.5rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>🔧</div>
+            <p style={{ fontSize: '15px', fontWeight: '600', color: '#222', margin: '0 0 4px' }}>No tienes trabajos agendados</p>
+            <p style={{ fontSize: '13px', color: '#888', margin: 0 }}>Cuando un cliente acepte tu propuesta, el trabajo aparecerá aquí.</p>
+          </div>
         </div>
 
         {/* Sección 3 — Indicadores */}
@@ -184,16 +189,14 @@ export default function ProveedorPage() {
           <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>Indicadores</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             {[
-              { label: 'Trabajos realizados', value: indicadores.trabajosRealizados, suffix: '', icon: '✅' },
-              { label: 'Ganancias este mes', value: `$${indicadores.gananciasMes.toLocaleString('es-CL')}`, suffix: '', icon: '💰' },
-              { label: 'Rating promedio', value: indicadores.rating > 0 ? indicadores.rating.toFixed(1) : '—', suffix: indicadores.rating > 0 ? '⭐' : '', icon: '⭐' },
-              { label: 'Reseñas totales', value: indicadores.totalReviews, suffix: '', icon: '💬' },
+              { label: 'Trabajos realizados', value: indicadores.trabajosRealizados, icon: '✅' },
+              { label: 'Ganancias este mes', value: `$${indicadores.gananciasMes.toLocaleString('es-CL')}`, icon: '💰' },
+              { label: 'Rating promedio', value: indicadores.rating > 0 ? `${indicadores.rating.toFixed(1)} ⭐` : '—', icon: '⭐' },
+              { label: 'Reseñas totales', value: indicadores.totalReviews, icon: '💬' },
             ].map(stat => (
               <div key={stat.label} style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '1.5rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                 <p style={{ fontSize: '11px', color: '#888', margin: '0 0 8px', fontWeight: '500', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{stat.label}</p>
-                <p style={{ fontSize: '28px', fontWeight: '800', color: '#222', margin: 0 }}>
-                  {stat.value}{stat.suffix}
-                </p>
+                <p style={{ fontSize: '28px', fontWeight: '800', color: '#222', margin: 0 }}>{stat.value}</p>
               </div>
             ))}
           </div>
