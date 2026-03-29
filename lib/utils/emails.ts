@@ -188,3 +188,59 @@ export async function enviarEmailNuevaPropuesta(
     `
   })
 }
+
+export async function enviarEmailPropuestaAceptada(
+  emailProveedor: string,
+  nombreProveedor: string,
+  categoria: string,
+  direccion: string,
+  comuna: string,
+  fechaHora: string,
+  precio: number
+) {
+  await resend.emails.send({
+    from: 'ServiChile <onboarding@resend.dev>',
+    to: emailProveedor,
+    subject: `¡Tu propuesta fue aceptada! ${categoria}`,
+    html: `
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
+            Servi<span style="color: #1dbf73;">Chile</span>
+          </h1>
+        </div>
+        <div style="background: #f0fdf7; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+          <p style="color: #065f46; font-size: 14px; font-weight: 600; margin: 0 0 4px;">✓ ¡Propuesta aceptada!</p>
+          <p style="color: #047857; font-size: 13px; margin: 0;">El cliente aceptó tu propuesta.</p>
+        </div>
+        <h2 style="color: #222; font-size: 18px; margin: 0 0 1rem;">Hola ${nombreProveedor},</h2>
+        <p style="color: #444; font-size: 14px; line-height: 1.6; margin: 0 0 1rem;">
+          Tu propuesta para <strong>${categoria}</strong> fue aceptada.
+        </p>
+        <div style="background: #f9f9f9; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+          <div style="margin-bottom: 8px;">
+            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">DIRECCIÓN</p>
+            <p style="font-size: 14px; color: #222; margin: 0;">${direccion}, ${comuna}</p>
+          </div>
+          <div style="margin-bottom: 8px;">
+            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">FECHA Y HORA</p>
+            <p style="font-size: 14px; color: #222; margin: 0;">${new Date(fechaHora).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+          </div>
+          <div>
+            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">PRECIO ACORDADO</p>
+            <p style="font-size: 20px; font-weight: 800; color: #222; margin: 0;">$${precio.toLocaleString('es-CL')}</p>
+          </div>
+        </div>
+        <div style="text-align: center; margin: 2rem 0;">
+          <a href="http://localhost:3000/proveedor"
+            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+            Ver en mi dashboard
+          </a>
+        </div>
+        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
+          ServiChile — Servicios profesionales a domicilio
+        </p>
+      </div>
+    `
+  })
+}

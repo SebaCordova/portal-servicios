@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 
 type Propuesta = {
@@ -13,7 +13,7 @@ type Propuesta = {
   provider_profiles: {
     id: string
     rating_avg: number | null
-    profiles: { full_name: string }
+    profiles: { full_name: string; email: string }
   }
 }
 
@@ -52,105 +52,16 @@ export default function MisPedidosPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  useEffect(() => {
-    async function loadData() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { window.location.href = '/login'; return }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('auth_user_id', user.id)
-        .single()
-
-if (!profile) return
-
-      const { data, error } = await supabase
-        .from('solicitudes')
-        .select(`
-          id, estado, comuna, calle, numero, fecha_inicio, fecha_fin,
-          descripcion, created_at, propuesta_aceptada_id,
-          categories ( name ),
-          propuestas!solicitud_id (
-            id, precio_clp, descripcion, fecha_hora_estimada, estado, razon_cancelacion,
-            provider_profiles (
-              id, rating_avg,
-              profiles ( full_name )
-            )
-          )
-        `)
-        .eq('cliente_id', profile.id)
-        .order('created_at', { ascending: false })
-
-setSolicitudes(data ?? [])
-setLoading(false)
-      setLoading(false)
-    }
-    loadData()
-  }, [])
-
-  async function aceptarPropuesta(solicitud: Solicitud, propuesta: Propuesta) {
-    setAccionando(propuesta.id)
-
-    // Actualizar propuesta aceptada
-    await supabase.from('propuestas').update({ estado: 'aceptada' }).eq('id', propuesta.id)
-
-    // Marcar otras propuestas como en_espera
-    await supabase.from('propuestas')
-      .update({ estado: 'en_espera' })
-      .eq('solicitud_id', solicitud.id)
-      .neq('id', propuesta.id)
-
-    // Actualizar solicitud
-    await supabase.from('solicitudes')
-      .update({ estado: 'en_proceso', propuesta_aceptada_id: propuesta.id })
-      .eq('id', solicitud.id)
-
-    // Crear booking
-    await supabase.from('bookings').insert({
-      client_id: (await supabase.from('profiles').select('id').eq('auth_user_id', (await supabase.auth.getUser()).data.user?.id ?? '').single()).data?.id,
-      service_id: (await supabase.from('services').select('id').eq('provider_id', propuesta.provider_profiles.id).single()).data?.id,
-      status: 'confirmado',
-      scheduled_at: propuesta.fecha_hora_estimada,
-      address: solicitud.calle + ' ' + solicitud.numero,
-      comuna: solicitud.comuna,
-      total_clp: propuesta.precio_clp,
-      propuesta_id: propuesta.id
-    })
-
-    await reloadSolicitudes()
-    setAccionando(null)
-  }
-
-  async function cancelarPropuesta(propuesta: Propuesta, solicitud: Solicitud) {
-    if (!razonSeleccionada) return
-    setAccionando(propuesta.id)
-
-    await supabase.from('propuestas')
-      .update({ estado: 'fallida', razon_cancelacion: razonSeleccionada })
-      .eq('id', propuesta.id)
-
-    // Volver propuestas en_espera a pendiente
-    await supabase.from('propuestas')
-      .update({ estado: 'pendiente' })
-      .eq('solicitud_id', solicitud.id)
-      .eq('estado', 'en_espera')
-
-    // Volver solicitud a abierta
-    await supabase.from('solicitudes')
-      .update({ estado: 'abierta', propuesta_aceptada_id: null })
-      .eq('id', solicitud.id)
-
-    setCancelando(null)
-    setRazonSeleccionada('')
-    await reloadSolicitudes()
-    setAccionando(null)
-  }
-
-  async function reloadSolicitudes() {
+  const cargarSolicitudes = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data: profile } = await supabase.from('profiles').select('id').eq('auth_user_id', user.id).single()
+    if (!user) { window.location.href = '/login'; return }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single()
+
     if (!profile) return
 
     const { data } = await supabase
@@ -159,11 +70,11 @@ setLoading(false)
         id, estado, comuna, calle, numero, fecha_inicio, fecha_fin,
         descripcion, created_at, propuesta_aceptada_id,
         categories ( name ),
-        propuestas (
+        propuestas!solicitud_id (
           id, precio_clp, descripcion, fecha_hora_estimada, estado, razon_cancelacion,
           provider_profiles (
             id, rating_avg,
-            profiles ( full_name )
+            profiles ( full_name, email )
           )
         )
       `)
@@ -171,10 +82,86 @@ setLoading(false)
       .order('created_at', { ascending: false })
 
     setSolicitudes(data ?? [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => {
+    cargarSolicitudes()
+  }, [cargarSolicitudes])
+
+  async function aceptarPropuesta(solicitud: Solicitud, prop: Propuesta) {
+    setAccionando(prop.id)
+
+    await supabase.from('propuestas').update({ estado: 'aceptada' }).eq('id', prop.id)
+    await supabase.from('propuestas')
+      .update({ estado: 'en_espera' })
+      .eq('solicitud_id', solicitud.id)
+      .neq('id', prop.id)
+      .in('estado', ['pendiente', 'en_espera'])
+
+    await supabase.from('solicitudes')
+      .update({ estado: 'en_proceso', propuesta_aceptada_id: prop.id })
+      .eq('id', solicitud.id)
+
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = await supabase.from('profiles').select('id').eq('auth_user_id', user?.id ?? '').single()
+   
+
+    const { error: bookingError } = await supabase.from('bookings').insert({
+      client_id: profile?.id,
+      status: 'confirmado',
+      scheduled_at: prop.fecha_hora_estimada,
+      address: `${solicitud.calle} ${solicitud.numero}`,
+      comuna: solicitud.comuna,
+      total_clp: prop.precio_clp,
+      propuesta_id: prop.id
+    })
+console.log('booking error:', bookingError) 
+
+    const provProfile = prop.provider_profiles as any
+    await fetch('/api/notifications/propuesta-aceptada', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        emailProveedor: provProfile?.profiles?.email,
+        nombreProveedor: provProfile?.profiles?.full_name,
+        categoria: (solicitud.categories as any)?.name,
+        direccion: `${solicitud.calle} ${solicitud.numero}`,
+        comuna: solicitud.comuna,
+        fechaHora: prop.fecha_hora_estimada,
+        precio: prop.precio_clp
+      })
+    })
+
+    await cargarSolicitudes()
+    setAccionando(null)
+  }
+
+  async function cancelarPropuesta(prop: Propuesta, solicitud: Solicitud) {
+    if (!razonSeleccionada) return
+    setAccionando(prop.id)
+
+    await supabase.from('propuestas')
+      .update({ estado: 'fallida', razon_cancelacion: razonSeleccionada })
+      .eq('id', prop.id)
+
+    await supabase.from('propuestas')
+      .update({ estado: 'pendiente' })
+      .eq('solicitud_id', solicitud.id)
+      .eq('estado', 'en_espera')
+
+    await supabase.from('solicitudes')
+      .update({ estado: 'abierta', propuesta_aceptada_id: null })
+      .eq('id', solicitud.id)
+
+    setCancelando(null)
+    setRazonSeleccionada('')
+    await cargarSolicitudes()
+    setAccionando(null)
   }
 
   function formatFecha(fecha: string) {
-    return new Date(fecha).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
+    return new Date(fecha + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
   }
 
   function formatFechaHora(fecha: string) {
@@ -183,21 +170,21 @@ setLoading(false)
 
   function getEstadoStyle(estado: string) {
     const map: Record<string, { bg: string; color: string; label: string }> = {
-      abierta:     { bg: '#fef3c7', color: '#92400e', label: 'Abierta' },
-      en_proceso:  { bg: '#dbeafe', color: '#1e40af', label: 'En proceso' },
-      completada:  { bg: '#d1fae5', color: '#065f46', label: 'Completada' },
-      cancelada:   { bg: '#fee2e2', color: '#991b1b', label: 'Cancelada' },
+      abierta:    { bg: '#fef3c7', color: '#92400e', label: 'Abierta' },
+      en_proceso: { bg: '#dbeafe', color: '#1e40af', label: 'En proceso' },
+      completada: { bg: '#d1fae5', color: '#065f46', label: 'Completada' },
+      cancelada:  { bg: '#fee2e2', color: '#991b1b', label: 'Cancelada' },
     }
     return map[estado] ?? { bg: '#f0f0f0', color: '#888', label: estado }
   }
 
   function getPropuestaStyle(estado: string) {
     const map: Record<string, { bg: string; color: string; label: string; border: string }> = {
-      pendiente:  { bg: '#fff', color: '#444', label: 'Pendiente', border: '#e0e0e0' },
-      aceptada:   { bg: '#f0fdf7', color: '#065f46', label: '✓ Aceptada', border: '#1dbf73' },
-      en_espera:  { bg: '#fff', color: '#888', label: 'En espera', border: '#e0e0e0' },
-      fallida:    { bg: '#fff7ed', color: '#9a3412', label: 'No concretada', border: '#fed7aa' },
-      rechazada:  { bg: '#fef2f2', color: '#991b1b', label: 'Rechazada', border: '#fecaca' },
+      pendiente: { bg: '#fff',     color: '#444',    label: 'Pendiente',       border: '#e0e0e0' },
+      aceptada:  { bg: '#f0fdf7',  color: '#065f46', label: '✓ Aceptada',      border: '#1dbf73' },
+      en_espera: { bg: '#fff',     color: '#888',    label: 'En espera',       border: '#e0e0e0' },
+      fallida:   { bg: '#fff7ed',  color: '#9a3412', label: 'No concretada',   border: '#fed7aa' },
+      rechazada: { bg: '#fef2f2',  color: '#991b1b', label: 'Rechazada',       border: '#fecaca' },
     }
     return map[estado] ?? { bg: '#fff', color: '#888', label: estado, border: '#e0e0e0' }
   }
@@ -230,7 +217,6 @@ setLoading(false)
               const estadoStyle = getEstadoStyle(sol.estado)
               return (
                 <div key={sol.id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-                  {/* Header solicitud */}
                   <div style={{ padding: '1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div>
@@ -244,7 +230,6 @@ setLoading(false)
                     </div>
                   </div>
 
-                  {/* Propuestas */}
                   <div style={{ padding: '1.5rem' }}>
                     <p style={{ fontSize: '13px', fontWeight: '600', color: '#888', margin: '0 0 1rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       Propuestas recibidas ({sol.propuestas.length})
@@ -257,7 +242,9 @@ setLoading(false)
                         {sol.propuestas.map(prop => {
                           const propStyle = getPropuestaStyle(prop.estado)
                           const esAceptada = prop.estado === 'aceptada'
+                          const esFallida = prop.estado === 'fallida'
                           const puedeCancelar = esAceptada && cancelando === prop.id
+                          const puedeAceptar = prop.estado === 'pendiente' && sol.estado === 'abierta'
 
                           return (
                             <div key={prop.id} style={{ border: `1.5px solid ${propStyle.border}`, borderRadius: '10px', padding: '1rem', background: propStyle.bg }}>
@@ -267,12 +254,10 @@ setLoading(false)
                                     {(prop.provider_profiles as any)?.profiles?.full_name}
                                   </p>
                                   {(prop.provider_profiles as any)?.rating_avg && (
-                                    <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>
-                                      ⭐ {(prop.provider_profiles as any).rating_avg.toFixed(1)}
-                                    </p>
+                                    <p style={{ fontSize: '12px', color: '#888', margin: 0 }}>⭐ {(prop.provider_profiles as any).rating_avg.toFixed(1)}</p>
                                   )}
                                 </div>
-                                <span style={{ fontSize: '12px', color: propStyle.color, background: propStyle.bg, padding: '3px 8px', borderRadius: '20px', border: `1px solid ${propStyle.border}` }}>
+                                <span style={{ fontSize: '12px', color: propStyle.color, padding: '3px 8px', borderRadius: '20px', border: `1px solid ${propStyle.border}`, background: propStyle.bg }}>
                                   {propStyle.label}
                                 </span>
                               </div>
@@ -292,25 +277,21 @@ setLoading(false)
                                 <p style={{ fontSize: '13px', color: '#555', margin: '8px 0 0', lineHeight: '1.5' }}>{prop.descripcion}</p>
                               )}
 
-                              {prop.razon_cancelacion && (
+                              {esFallida && prop.razon_cancelacion && (
                                 <p style={{ fontSize: '12px', color: '#9a3412', margin: '8px 0 0', background: '#fff7ed', padding: '6px 10px', borderRadius: '6px' }}>
                                   Motivo: {prop.razon_cancelacion}
                                 </p>
                               )}
 
-                              {/* Acciones */}
-                              {prop.estado === 'pendiente' && sol.estado === 'abierta' && (
-                                <button
-                                  onClick={() => aceptarPropuesta(sol, prop)}
-                                  disabled={accionando === prop.id}
+                              {puedeAceptar && (
+                                <button onClick={() => aceptarPropuesta(sol, prop)} disabled={accionando === prop.id}
                                   style={{ marginTop: '10px', width: '100%', padding: '9px', background: '#1dbf73', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
                                   {accionando === prop.id ? 'Procesando...' : 'Aceptar propuesta'}
                                 </button>
                               )}
 
                               {esAceptada && sol.estado === 'en_proceso' && !puedeCancelar && (
-                                <button
-                                  onClick={() => setCancelando(prop.id)}
+                                <button onClick={() => setCancelando(prop.id)}
                                   style={{ marginTop: '10px', width: '100%', padding: '9px', background: '#fff', color: '#e53935', border: '1.5px solid #e53935', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
                                   Cancelar propuesta
                                 </button>
@@ -335,8 +316,7 @@ setLoading(false)
                                       style={{ flex: 1, padding: '9px', background: '#f5f5f5', color: '#444', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
                                       Volver
                                     </button>
-                                    <button onClick={() => cancelarPropuesta(prop, sol)}
-                                      disabled={!razonSeleccionada || accionando === prop.id}
+                                    <button onClick={() => cancelarPropuesta(prop, sol)} disabled={!razonSeleccionada || accionando === prop.id}
                                       style={{ flex: 1, padding: '9px', background: razonSeleccionada ? '#e53935' : '#fca5a5', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: razonSeleccionada ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
                                       {accionando === prop.id ? 'Cancelando...' : 'Confirmar cancelación'}
                                     </button>
