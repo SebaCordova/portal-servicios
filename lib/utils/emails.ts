@@ -92,3 +92,48 @@ export async function enviarEmailNuevaSolicitud(nombreProveedor: string) {
     `
   })
 }
+
+export async function enviarEmailNuevaSolicitudProveedor(
+  emailProveedor: string,
+  nombreProveedor: string,
+  categoria: string,
+  comuna: string,
+  fechaInicio: string,
+  fechaFin: string
+) {
+  await resend.emails.send({
+    from: 'ServiChile <onboarding@resend.dev>',
+    to: emailProveedor,
+    subject: `Nueva solicitud en tu zona: ${categoria}`,
+    html: `
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
+            Servi<span style="color: #1dbf73;">Chile</span>
+          </h1>
+        </div>
+        <div style="background: #fef3c7; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+          <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0 0 4px;">📋 Nueva solicitud disponible</p>
+          <p style="color: #92400e; font-size: 13px; margin: 0;">Hay un cliente buscando tu servicio en tu zona.</p>
+        </div>
+        <h2 style="color: #222; font-size: 18px; margin: 0 0 1rem;">Hola ${nombreProveedor},</h2>
+        <p style="color: #444; font-size: 14px; line-height: 1.6; margin: 0 0 1rem;">
+          Un cliente necesita el servicio de <strong>${categoria}</strong> en <strong>${comuna}</strong>.
+        </p>
+        <div style="background: #f9f9f9; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
+          <p style="font-size: 13px; color: #888; margin: 0 0 4px; font-weight: 500;">FECHAS DISPONIBLES</p>
+          <p style="font-size: 14px; color: #222; margin: 0;">${fechaInicio} → ${fechaFin}</p>
+        </div>
+        <div style="text-align: center; margin: 2rem 0;">
+          <a href="http://localhost:3000/proveedor"
+            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+            Ver solicitud y enviar propuesta
+          </a>
+        </div>
+        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
+          ServiChile — Servicios profesionales a domicilio
+        </p>
+      </div>
+    `
+  })
+}

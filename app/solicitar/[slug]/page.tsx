@@ -104,7 +104,7 @@ Comentarios: ${comentarios || 'Ninguno'}
 
       const direccion = `${calle} ${numero}${datoAdicional ? `, ${datoAdicional}` : ''}`
 
-      const { error: insertError } = await supabase
+      const { data, error: insertError } = await supabase
         .from('solicitudes')
         .insert({
           cliente_id: profile.id,
@@ -121,8 +121,18 @@ Comentarios: ${comentarios || 'Ninguno'}
           estado: 'abierta',
           proveedor_directo_id: proveedorId ?? null
         })
-
+        .select('id')
+        .single()
       if (insertError) throw insertError
+await fetch('/api/notifications/solicitud', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    solicitudId: data.id,
+    categoryId: categoria?.id,
+    comuna
+  })
+})
       setSuccess(true)
     } catch (err: any) {
       setError('Hubo un error al enviar tu solicitud. Intenta nuevamente.')
