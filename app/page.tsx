@@ -1,65 +1,230 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useEffect } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
+
+type CmsData = Record<string, string | null>
+
+type Categoria = {
+  id: string
+  name: string
+  slug: string
+  icon: string
+}
+
+type Proveedor = {
+  id: string
+  rating_avg: number | null
+  total_reviews: number
+  profiles: { full_name: string }
+  services: { title: string }[]
+}
+
+function getEmoji(icon: string) {
+  const map: Record<string, string> = {
+    flower: '🌸', scissors: '✂️', trash: '🗑️',
+    wrench: '🔧', droplets: '💧', zap: '⚡', hammer: '🔨'
+  }
+  return map[icon] ?? '🛠️'
+}
+
+export default function HomePage() {
+  const [cms, setCms] = useState<CmsData>({})
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [proveedores, setProveedores] = useState<Proveedor[]>([])
+  const [loading, setLoading] = useState(true)
+  const [busqueda, setBusqueda] = useState('')
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  useEffect(() => {
+    async function loadData() {
+      const [cmsRes, catsRes, provsRes] = await Promise.all([
+        supabase.from('cms_home').select('clave, valor'),
+        supabase.from('categories').select('id, name, slug, icon').eq('activa', true).order('name'),
+        supabase.from('provider_profiles').select(`
+          id, rating_avg, total_reviews,
+          profiles ( full_name ),
+          services ( title )
+        `).eq('verified', true).not('rating_avg', 'is', null).order('rating_avg', { ascending: false }).limit(4)
+      ])
+
+      const cmsMap: CmsData = {}
+      for (const item of cmsRes.data ?? []) {
+        cmsMap[item.clave] = item.valor
+      }
+      setCms(cmsMap)
+      setCategorias(catsRes.data ?? [])
+      setProveedores(provsRes.data ?? [])
+      setLoading(false)
+    }
+    loadData()
+  }, [])
+
+  function handleBusqueda(e: React.FormEvent) {
+    e.preventDefault()
+    const cat = categorias.find(c => c.name.toLowerCase().includes(busqueda.toLowerCase()))
+    if (cat) window.location.href = `/categorias/${cat.slug}`
+  }
+
+  const tieneContenido = [1,2,3].some(i => cms[`contenido_${i}_titulo`])
+
+  if (loading) return null
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+
+      {/* Hero */}
+      <section style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', padding: '5rem 2rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+        <div style={{ maxWidth: '700px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
+          <h1 style={{ fontSize: '42px', fontWeight: '900', color: '#fff', margin: '0 0 1rem', lineHeight: '1.2', letterSpacing: '-1px' }}>
+            {cms['hero_titulo'] ?? 'Servicios profesionales a domicilio'}
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.7)', margin: '0 0 2.5rem', lineHeight: '1.5' }}>
+            {cms['hero_subtitulo'] ?? 'Encuentra profesionales verificados cerca de ti'}
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+          <form onSubmit={handleBusqueda} style={{ display: 'flex', gap: '0', maxWidth: '560px', margin: '0 auto', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
+            <input
+              type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+              placeholder="¿Qué servicio necesitas?"
+              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit' }}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
+            <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              {cms['hero_cta'] ?? 'Buscar'}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* Categorías */}
+      <section style={{ padding: '4rem 2rem', background: '#fff' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#222', margin: '0 0 0.5rem', textAlign: 'center' }}>Servicios disponibles</h2>
+          <p style={{ fontSize: '15px', color: '#888', textAlign: 'center', margin: '0 0 2.5rem' }}>Profesionales verificados para cada necesidad</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
+            {categorias.map(cat => (
+              <a key={cat.id} href={`/categorias/${cat.slug}`} style={{ textDecoration: 'none' }}>
+                <div style={{ background: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', border: '1px solid #e0e0e0', cursor: 'pointer', transition: 'all 0.2s' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = '#f0fdf7'; e.currentTarget.style.borderColor = '#1dbf73' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = '#f9f9f9'; e.currentTarget.style.borderColor = '#e0e0e0' }}>
+                  <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>{getEmoji(cat.icon)}</div>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#222', margin: 0, lineHeight: '1.3' }}>{cat.name}</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Cómo funciona */}
+      <section style={{ padding: '4rem 2rem', background: '#f5f5f5' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+          <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#222', margin: '0 0 3rem', textAlign: 'center' }}>
+            {cms['como_funciona_titulo'] ?? '¿Cómo funciona?'}
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+            {[1,2,3].map(paso => (
+              <div key={paso} style={{ textAlign: 'center' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#1dbf73', color: '#fff', fontSize: '22px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+                  {paso}
+                </div>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 8px' }}>
+                  {cms[`paso${paso}_titulo`] ?? ['Publica tu solicitud', 'Recibe propuestas', 'Elige y contrata'][paso-1]}
+                </h3>
+                <p style={{ fontSize: '14px', color: '#666', margin: 0, lineHeight: '1.5' }}>
+                  {cms[`paso${paso}_descripcion`] ?? ['Cuéntanos qué necesitas y dónde', 'Profesionales verificados te envían sus cotizaciones', 'Selecciona la propuesta que más te acomode'][paso-1]}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Proveedores destacados */}
+      {proveedores.length > 0 && (
+        <section style={{ padding: '4rem 2rem', background: '#fff' }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#222', margin: '0 0 0.5rem', textAlign: 'center' }}>Profesionales destacados</h2>
+            <p style={{ fontSize: '15px', color: '#888', textAlign: 'center', margin: '0 0 2.5rem' }}>Los mejor evaluados por nuestros clientes</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+              {proveedores.map(p => (
+                <a key={p.id} href={`/proveedor/${p.id}`} style={{ textDecoration: 'none' }}>
+                  <div style={{ background: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e0e0e0', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
+                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1dbf73', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700', color: '#fff', margin: '0 0 1rem' }}>
+                      {(p.profiles as any)?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </div>
+                    <p style={{ fontSize: '14px', fontWeight: '700', color: '#222', margin: '0 0 4px' }}>{(p.profiles as any)?.full_name}</p>
+                    <p style={{ fontSize: '12px', color: '#888', margin: '0 0 8px' }}>
+                      ⭐ {p.rating_avg?.toFixed(1)} · {p.total_reviews} reseña{p.total_reviews !== 1 ? 's' : ''}
+                    </p>
+                    <p style={{ fontSize: '12px', color: '#555', margin: 0 }}>{(p.services as any)?.[0]?.title}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Banner proveedor */}
+      <section style={{ padding: '4rem 2rem', background: '#1dbf73' }}>
+        <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#fff', margin: '0 0 1rem' }}>
+            ¿Eres profesional? Ofrece tus servicios
+          </h2>
+          <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', margin: '0 0 2rem', lineHeight: '1.5' }}>
+            Únete a ServiChile y conecta con clientes que necesitan tu expertise
+          </p>
+          <a href="/login" style={{ display: 'inline-block', padding: '14px 32px', background: '#fff', color: '#1dbf73', borderRadius: '8px', textDecoration: 'none', fontSize: '16px', fontWeight: '700' }}>
+            Comenzar ahora →
           </a>
         </div>
-      </main>
+      </section>
+
+      {/* Slots de contenido */}
+      {tieneContenido && (
+        <section style={{ padding: '4rem 2rem', background: '#f5f5f5' }}>
+          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#222', margin: '0 0 2rem', textAlign: 'center' }}>Recursos y consejos</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
+              {[1,2,3].map(i => {
+                const titulo = cms[`contenido_${i}_titulo`]
+                const descripcion = cms[`contenido_${i}_descripcion`]
+                const link = cms[`contenido_${i}_link`]
+                if (!titulo) return null
+                return (
+                  <a key={i} href={link ?? '#'} style={{ textDecoration: 'none' }}>
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0', overflow: 'hidden', cursor: 'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                      {cms[`contenido_${i}_imagen`] && (
+                        <img src={cms[`contenido_${i}_imagen`]!} alt={titulo} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
+                      )}
+                      <div style={{ padding: '1.2rem' }}>
+                        <p style={{ fontSize: '15px', fontWeight: '700', color: '#222', margin: '0 0 6px' }}>{titulo}</p>
+                        {descripcion && <p style={{ fontSize: '13px', color: '#666', margin: 0, lineHeight: '1.4' }}>{descripcion}</p>}
+                      </div>
+                    </div>
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Footer */}
+      <footer style={{ background: '#1a1a2e', padding: '2rem', textAlign: 'center' }}>
+        <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+          {cms['footer_texto'] ?? 'ServiChile — Servicios profesionales a domicilio'}
+        </p>
+      </footer>
+
     </div>
-  );
+  )
 }
