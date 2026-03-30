@@ -27,7 +27,7 @@ export default function LoginPage() {
       email,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: 'http://localhost:3000/auth/callback',
+        emailRedirectTo: 'https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/auth/callback',
         data: mode === 'register' ? { full_name: name } : {}
       }
     })
