@@ -138,6 +138,7 @@ export default function Header() {
             <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', background: '#fff', border: '1px solid #e0e0e0', borderRadius: '10px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)', minWidth: '180px', overflow: 'hidden', zIndex: 200 }}>
               {profile.is_admin && <a href="/admin" style={menuItemStyle}>🛡 Panel admin</a>}
               {profile.is_provider && <a href="/proveedor" style={menuItemStyle}>🔧 Portal proveedor</a>}
+              <a href="/mensajes" style={menuItemStyle}>💬 Mensajes</a>
               <a href="/cuenta" style={menuItemStyle}>👤 Mi cuenta</a>
               <div style={{ borderTop: '1px solid #f0f0f0' }} />
               <button onClick={handleLogout} style={{ ...menuItemStyle, width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#e53935' }}>

@@ -244,3 +244,43 @@ export async function enviarEmailPropuestaAceptada(
     `
   })
 }
+
+export async function enviarEmailNuevoMensaje(
+  emailDestinatario: string,
+  nombreDestinatario: string,
+  nombreRemitente: string,
+  categoria: string,
+  solicitudId: string
+) {
+  await resend.emails.send({
+    from: 'ServiChile <onboarding@resend.dev>',
+    to: emailDestinatario,
+    subject: `Nuevo mensaje de ${nombreRemitente}`,
+    html: `
+      <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
+        <div style="text-align: center; margin-bottom: 2rem;">
+          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
+            Servi<span style="color: #1dbf73;">Chile</span>
+          </h1>
+        </div>
+        <div style="background: #f0f0ff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
+          <p style="color: #3730a3; font-size: 14px; font-weight: 600; margin: 0 0 4px;">💬 Nuevo mensaje</p>
+          <p style="color: #4338ca; font-size: 13px; margin: 0;">${nombreRemitente} te envió un mensaje.</p>
+        </div>
+        <h2 style="color: #222; font-size: 18px; margin: 0 0 1rem;">Hola ${nombreDestinatario},</h2>
+        <p style="color: #444; font-size: 14px; line-height: 1.6; margin: 0 0 1.5rem;">
+          Tienes un nuevo mensaje sobre tu solicitud de <strong>${categoria}</strong>.
+        </p>
+        <div style="text-align: center; margin: 2rem 0;">
+          <a href="http://localhost:3000/mensajes/${solicitudId}"
+            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
+            Ver mensaje
+          </a>
+        </div>
+        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
+          ServiChile — Servicios profesionales a domicilio
+        </p>
+      </div>
+    `
+  })
+}
