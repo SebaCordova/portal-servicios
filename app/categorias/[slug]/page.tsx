@@ -74,7 +74,7 @@ export default function CategoriaPage() {
           ).data?.map(s => s.provider_id) ?? []
         )
 
-      setProveedores(provs ?? [])
+      setProveedores((provs ?? []) as any)
       setLoading(false)
     }
     loadData()
