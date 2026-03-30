@@ -61,7 +61,7 @@ export default function AdminPage() {
       `)
       .order('created_at', { ascending: false })
 
-    setProveedores(data ?? [])
+    setProveedores((data ?? []) as any)
     setLoading(false)
   }
 
