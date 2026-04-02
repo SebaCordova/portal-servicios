@@ -60,14 +60,19 @@ export async function POST(request: NextRequest) {
     for (const p of perfiles ?? []) {
       const profile = p.profiles as any
       if (profile?.email) {
-        await enviarEmailNuevaSolicitudProveedor(
-          profile.email,
-          profile.full_name ?? 'Proveedor',
-          (solicitud.categories as any)?.name ?? 'Servicio',
-          comuna,
-          solicitud.fecha_inicio,
-          solicitud.fecha_fin
-        )
+        await fetch('https://api.resend.com/emails', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify({
+    from: 'ServiChile <onboarding@resend.dev>',
+    to: profile.email,
+    subject: `Nueva solicitud en tu zona: ${(solicitud.categories as any)?.name}`,
+    html: `<p>Hola ${profile.full_name ?? 'Proveedor'},</p><p>Un cliente necesita <strong>${(solicitud.categories as any)?.name}</strong> en <strong>${comuna}</strong>.</p><p>Fechas: ${solicitud.fecha_inicio} → ${solicitud.fecha_fin}</p><a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/proveedor" style="background:#1dbf73;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Ver solicitud</a>`
+  })
+})
         enviados++
       }
     }
