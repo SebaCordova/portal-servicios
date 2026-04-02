@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { enviarEmailNuevaSolicitudProveedor } from '@/lib/utils/emails'
 
+export const dynamic = 'force-dynamic'
 export async function POST(request: NextRequest) {
   try {
     const { solicitudId, categoryId, comuna } = await request.json()
