@@ -70,7 +70,6 @@ export async function POST(request: NextRequest) {
     from: 'ServiChile <onboarding@resend.dev>',
     to: profile.email,
     subject: `Nueva solicitud en tu zona: ${(solicitud.categories as any)?.name}`,
-console.log('URL en email:', 'https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/proveedor')
     html: `<p>Hola ${profile.full_name ?? 'Proveedor'},</p><p>Un cliente necesita <strong>${(solicitud.categories as any)?.name}</strong> en <strong>${comuna}</strong>.</p><p>Fechas: ${solicitud.fecha_inicio} → ${solicitud.fecha_fin}</p><a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/proveedor" style="background:#1dbf73;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Ver solicitud</a>`
   })
 })
