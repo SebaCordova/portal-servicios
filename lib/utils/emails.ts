@@ -23,7 +23,7 @@ export async function enviarEmailAprobacion(email: string, nombre: string) {
           Ya puedes acceder al portal de proveedores y comenzar a ofrecer tus servicios.
         </p>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/proveedor" 
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/proveedor" 
             style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
             Ir al portal proveedor
           </a>
@@ -80,7 +80,7 @@ export async function enviarEmailNuevaSolicitud(nombreProveedor: string) {
           <strong>${nombreProveedor}</strong> ha enviado una solicitud para ser proveedor.
         </p>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/admin" 
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/admin" 
             style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
             Revisar en el panel admin
           </a>
@@ -125,7 +125,7 @@ export async function enviarEmailNuevaSolicitudProveedor(
           <p style="font-size: 14px; color: #222; margin: 0;">${fechaInicio} → ${fechaFin}</p>
         </div>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/proveedor"
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/proveedor"
             style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
             Ver solicitud y enviar propuesta
           </a>
@@ -176,7 +176,7 @@ export async function enviarEmailNuevaPropuesta(
           </div>
         </div>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/cliente/mis-pedidos"
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/cliente/mis-pedidos"
             style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
             Ver propuesta y responder
           </a>
@@ -232,7 +232,7 @@ export async function enviarEmailPropuestaAceptada(
           </div>
         </div>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/proveedor"
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/proveedor"
             style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
             Ver en mi dashboard
           </a>
@@ -272,7 +272,7 @@ export async function enviarEmailNuevoMensaje(
           Tienes un nuevo mensaje sobre tu solicitud de <strong>${categoria}</strong>.
         </p>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="https://portal-servicios-g0arrx476-sebacordovas-projects.vercel.app/mensajes/${solicitudId}"
+          <a href="${process.env.NEXT_PUBLIC_SITE_URL}/mensajes/${solicitudId}"
             style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
             Ver mensaje
           </a>
