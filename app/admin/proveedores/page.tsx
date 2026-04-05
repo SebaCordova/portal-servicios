@@ -66,10 +66,10 @@ export default function AdminPage() {
   }
 
   async function enviarNotificacion(tipo: string, email: string, nombre: string) {
-    await fetch('/api/notifications', {
+    await fetch(`/api/notifications/${tipo}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, email, nombre })
+      body: JSON.stringify({ email, nombre })
     })
   }
 
