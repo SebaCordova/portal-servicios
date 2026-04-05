@@ -1,6 +1,7 @@
 import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
+const SITE_URL = process.env.SITE_URL || 'http://localhost:3000'
 
 export async function enviarEmailAprobacion(email: string, nombre: string) {
   await resend.emails.send({
@@ -9,28 +10,15 @@ export async function enviarEmailAprobacion(email: string, nombre: string) {
     subject: '¡Tu cuenta de proveedor fue aprobada!',
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
-            Servi<span style="color: #1dbf73;">Chile</span>
-          </h1>
+        <h1 style="font-size: 24px; font-weight: 800; color: #222;">Servi<span style="color: #1dbf73;">Chile</span></h1>
+        <div style="background: #f0fdf7; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0;">
+          <p style="color: #065f46; font-size: 14px; font-weight: 600; margin: 0;">✓ ¡Tu cuenta de proveedor fue aprobada!</p>
         </div>
-        <div style="background: #f0fdf7; border-radius: 12px; padding: 2rem; text-align: center; margin-bottom: 1.5rem;">
-          <div style="font-size: 48px; margin-bottom: 1rem;">✓</div>
-          <h2 style="color: #065f46; font-size: 20px; margin: 0 0 0.5rem;">¡Felicitaciones, ${nombre}!</h2>
-          <p style="color: #047857; margin: 0;">Tu cuenta de proveedor ha sido aprobada.</p>
-        </div>
-        <p style="color: #444; font-size: 14px; line-height: 1.6;">
-          Ya puedes acceder al portal de proveedores y comenzar a ofrecer tus servicios.
-        </p>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;">Hola ${nombre}, ya puedes acceder al portal de proveedores.</p>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="${process.env.SITE_URL}/proveedor" 
-            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
-            Ir al portal proveedor
-          </a>
+          <a href="${SITE_URL}/proveedor" style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Ir al portal proveedor</a>
         </div>
-        <p style="color: #aaa; font-size: 12px; text-align: center;">
-          ServiChile — Servicios profesionales a domicilio
-        </p>
+        <p style="color: #aaa; font-size: 12px; text-align: center;">ServiChile — Servicios profesionales a domicilio</p>
       </div>
     `
   })
@@ -43,51 +31,28 @@ export async function enviarEmailRechazo(email: string, nombre: string) {
     subject: 'Actualización sobre tu solicitud de proveedor',
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
-            Servi<span style="color: #1dbf73;">Chile</span>
-          </h1>
-        </div>
-        <h2 style="color: #222; font-size: 18px;">Hola ${nombre},</h2>
-        <p style="color: #444; font-size: 14px; line-height: 1.6;">
-          Luego de revisar tu solicitud, no pudimos aprobar tu cuenta de proveedor en este momento.
-        </p>
-        <p style="color: #444; font-size: 14px; line-height: 1.6;">
-          Si crees que hubo un error o quieres más información, responde este email y te ayudaremos.
-        </p>
-        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
-          ServiChile — Servicios profesionales a domicilio
-        </p>
+        <h1 style="font-size: 24px; font-weight: 800; color: #222;">Servi<span style="color: #1dbf73;">Chile</span></h1>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;">Hola ${nombre}, luego de revisar tu solicitud, no pudimos aprobar tu cuenta en este momento.</p>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;">Si tienes dudas, responde este email.</p>
+        <p style="color: #aaa; font-size: 12px; text-align: center;">ServiChile — Servicios profesionales a domicilio</p>
       </div>
     `
   })
 }
 
-export async function enviarEmailNuevaSolicitud(nombreProveedor: string) {
+export async function enviarEmailNuevaSolicitudAdmin(nombreProveedor: string) {
   await resend.emails.send({
     from: 'ServiChile <onboarding@resend.dev>',
     to: 'sebastian.cordova@gmail.com',
     subject: `Nueva solicitud de proveedor: ${nombreProveedor}`,
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
-            Servi<span style="color: #1dbf73;">Chile</span>
-          </h1>
-        </div>
-        <h2 style="color: #222; font-size: 18px;">Nueva solicitud pendiente</h2>
-        <p style="color: #444; font-size: 14px; line-height: 1.6;">
-          <strong>${nombreProveedor}</strong> ha enviado una solicitud para ser proveedor.
-        </p>
+        <h1 style="font-size: 24px; font-weight: 800; color: #222;">Servi<span style="color: #1dbf73;">Chile</span></h1>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;"><strong>${nombreProveedor}</strong> ha enviado una solicitud para ser proveedor.</p>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="${process.env.SITE_URL}/admin" 
-            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
-            Revisar en el panel admin
-          </a>
+          <a href="${SITE_URL}/admin" style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Revisar en el panel admin</a>
         </div>
-        <p style="color: #aaa; font-size: 12px; text-align: center;">
-          ServiChile — Servicios profesionales a domicilio
-        </p>
+        <p style="color: #aaa; font-size: 12px; text-align: center;">ServiChile — Servicios profesionales a domicilio</p>
       </div>
     `
   })
@@ -107,32 +72,16 @@ export async function enviarEmailNuevaSolicitudProveedor(
     subject: `Nueva solicitud en tu zona: ${categoria}`,
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
-            Servi<span style="color: #1dbf73;">Chile</span>
-          </h1>
+        <h1 style="font-size: 24px; font-weight: 800; color: #222;">Servi<span style="color: #1dbf73;">Chile</span></h1>
+        <div style="background: #fef3c7; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0;">
+          <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0;">📋 Nueva solicitud disponible en ${comuna}</p>
         </div>
-        <div style="background: #fef3c7; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
-          <p style="color: #92400e; font-size: 14px; font-weight: 600; margin: 0 0 4px;">📋 Nueva solicitud disponible</p>
-          <p style="color: #92400e; font-size: 13px; margin: 0;">Hay un cliente buscando tu servicio en tu zona.</p>
-        </div>
-        <h2 style="color: #222; font-size: 18px; margin: 0 0 1rem;">Hola ${nombreProveedor},</h2>
-        <p style="color: #444; font-size: 14px; line-height: 1.6; margin: 0 0 1rem;">
-          Un cliente necesita el servicio de <strong>${categoria}</strong> en <strong>${comuna}</strong>.
-        </p>
-        <div style="background: #f9f9f9; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-          <p style="font-size: 13px; color: #888; margin: 0 0 4px; font-weight: 500;">FECHAS DISPONIBLES</p>
-          <p style="font-size: 14px; color: #222; margin: 0;">${fechaInicio} → ${fechaFin}</p>
-        </div>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;">Hola ${nombreProveedor}, un cliente necesita <strong>${categoria}</strong>.</p>
+        <p style="color: #444; font-size: 14px;">Fechas disponibles: ${fechaInicio} → ${fechaFin}</p>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="${process.env.SITE_URL}/proveedor"
-            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
-            Ver solicitud y enviar propuesta
-          </a>
+          <a href="${SITE_URL}/proveedor" style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Ver solicitud y enviar propuesta</a>
         </div>
-        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
-          ServiChile — Servicios profesionales a domicilio
-        </p>
+        <p style="color: #aaa; font-size: 12px; text-align: center;">ServiChile — Servicios profesionales a domicilio</p>
       </div>
     `
   })
@@ -152,38 +101,18 @@ export async function enviarEmailNuevaPropuesta(
     subject: `Nueva propuesta recibida: ${categoria}`,
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
-            Servi<span style="color: #1dbf73;">Chile</span>
-          </h1>
-        </div>
-        <div style="background: #f0fdf7; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
-          <p style="color: #065f46; font-size: 14px; font-weight: 600; margin: 0 0 4px;">💰 Nueva propuesta recibida</p>
-          <p style="color: #047857; font-size: 13px; margin: 0;">Un profesional respondió a tu solicitud.</p>
-        </div>
-        <h2 style="color: #222; font-size: 18px; margin: 0 0 1rem;">Hola ${nombreCliente},</h2>
-        <p style="color: #444; font-size: 14px; line-height: 1.6; margin: 0 0 1rem;">
-          <strong>${nombreProveedor}</strong> envió una propuesta para tu solicitud de <strong>${categoria}</strong>.
-        </p>
-        <div style="background: #f9f9f9; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-          <div style="margin-bottom: 8px;">
-            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">PRECIO PROPUESTO</p>
-            <p style="font-size: 20px; font-weight: 800; color: #222; margin: 0;">$${precio.toLocaleString('es-CL')}</p>
-          </div>
-          <div>
-            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">FECHA Y HORA ESTIMADA</p>
-            <p style="font-size: 14px; color: #222; margin: 0;">${new Date(fechaHora).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-          </div>
+        <h1 style="font-size: 24px; font-weight: 800; color: #222;">Servi<span style="color: #1dbf73;">Chile</span></h1>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;">Hola ${nombreCliente}, <strong>${nombreProveedor}</strong> envió una propuesta para tu solicitud de <strong>${categoria}</strong>.</p>
+        <div style="background: #f9f9f9; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+          <p style="font-size: 12px; color: #888; margin: 0 0 4px;">PRECIO</p>
+          <p style="font-size: 20px; font-weight: 800; color: #222; margin: 0 0 8px;">$${precio.toLocaleString('es-CL')}</p>
+          <p style="font-size: 12px; color: #888; margin: 0 0 4px;">FECHA ESTIMADA</p>
+          <p style="font-size: 14px; color: #222; margin: 0;">${new Date(fechaHora).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="${process.env.SITE_URL}/cliente/mis-pedidos"
-            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
-            Ver propuesta y responder
-          </a>
+          <a href="${SITE_URL}/cliente/mis-pedidos" style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Ver propuesta</a>
         </div>
-        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
-          ServiChile — Servicios profesionales a domicilio
-        </p>
+        <p style="color: #aaa; font-size: 12px; text-align: center;">ServiChile — Servicios profesionales a domicilio</p>
       </div>
     `
   })
@@ -204,42 +133,23 @@ export async function enviarEmailPropuestaAceptada(
     subject: `¡Tu propuesta fue aceptada! ${categoria}`,
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
-            Servi<span style="color: #1dbf73;">Chile</span>
-          </h1>
+        <h1 style="font-size: 24px; font-weight: 800; color: #222;">Servi<span style="color: #1dbf73;">Chile</span></h1>
+        <div style="background: #f0fdf7; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0;">
+          <p style="color: #065f46; font-size: 14px; font-weight: 600; margin: 0;">✓ ¡Tu propuesta fue aceptada!</p>
         </div>
-        <div style="background: #f0fdf7; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
-          <p style="color: #065f46; font-size: 14px; font-weight: 600; margin: 0 0 4px;">✓ ¡Propuesta aceptada!</p>
-          <p style="color: #047857; font-size: 13px; margin: 0;">El cliente aceptó tu propuesta.</p>
-        </div>
-        <h2 style="color: #222; font-size: 18px; margin: 0 0 1rem;">Hola ${nombreProveedor},</h2>
-        <p style="color: #444; font-size: 14px; line-height: 1.6; margin: 0 0 1rem;">
-          Tu propuesta para <strong>${categoria}</strong> fue aceptada.
-        </p>
-        <div style="background: #f9f9f9; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">
-          <div style="margin-bottom: 8px;">
-            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">DIRECCIÓN</p>
-            <p style="font-size: 14px; color: #222; margin: 0;">${direccion}, ${comuna}</p>
-          </div>
-          <div style="margin-bottom: 8px;">
-            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">FECHA Y HORA</p>
-            <p style="font-size: 14px; color: #222; margin: 0;">${new Date(fechaHora).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
-          </div>
-          <div>
-            <p style="font-size: 12px; color: #888; margin: 0 0 2px; font-weight: 500;">PRECIO ACORDADO</p>
-            <p style="font-size: 20px; font-weight: 800; color: #222; margin: 0;">$${precio.toLocaleString('es-CL')}</p>
-          </div>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;">Hola ${nombreProveedor}, tu propuesta para <strong>${categoria}</strong> fue aceptada.</p>
+        <div style="background: #f9f9f9; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+          <p style="font-size: 12px; color: #888; margin: 0 0 4px;">DIRECCIÓN</p>
+          <p style="font-size: 14px; color: #222; margin: 0 0 8px;">${direccion}, ${comuna}</p>
+          <p style="font-size: 12px; color: #888; margin: 0 0 4px;">FECHA Y HORA</p>
+          <p style="font-size: 14px; color: #222; margin: 0 0 8px;">${new Date(fechaHora).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+          <p style="font-size: 12px; color: #888; margin: 0 0 4px;">PRECIO</p>
+          <p style="font-size: 20px; font-weight: 800; color: #222; margin: 0;">$${precio.toLocaleString('es-CL')}</p>
         </div>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="${process.env.SITE_URL}/proveedor"
-            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
-            Ver en mi dashboard
-          </a>
+          <a href="${SITE_URL}/proveedor" style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Ver en mi dashboard</a>
         </div>
-        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
-          ServiChile — Servicios profesionales a domicilio
-        </p>
+        <p style="color: #aaa; font-size: 12px; text-align: center;">ServiChile — Servicios profesionales a domicilio</p>
       </div>
     `
   })
@@ -258,28 +168,12 @@ export async function enviarEmailNuevoMensaje(
     subject: `Nuevo mensaje de ${nombreRemitente}`,
     html: `
       <div style="font-family: 'Helvetica Neue', Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem;">
-        <div style="text-align: center; margin-bottom: 2rem;">
-          <h1 style="font-size: 24px; font-weight: 800; color: #222;">
-            Servi<span style="color: #1dbf73;">Chile</span>
-          </h1>
-        </div>
-        <div style="background: #f0f0ff; border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
-          <p style="color: #3730a3; font-size: 14px; font-weight: 600; margin: 0 0 4px;">💬 Nuevo mensaje</p>
-          <p style="color: #4338ca; font-size: 13px; margin: 0;">${nombreRemitente} te envió un mensaje.</p>
-        </div>
-        <h2 style="color: #222; font-size: 18px; margin: 0 0 1rem;">Hola ${nombreDestinatario},</h2>
-        <p style="color: #444; font-size: 14px; line-height: 1.6; margin: 0 0 1.5rem;">
-          Tienes un nuevo mensaje sobre tu solicitud de <strong>${categoria}</strong>.
-        </p>
+        <h1 style="font-size: 24px; font-weight: 800; color: #222;">Servi<span style="color: #1dbf73;">Chile</span></h1>
+        <p style="color: #444; font-size: 14px; line-height: 1.6;">Hola ${nombreDestinatario}, <strong>${nombreRemitente}</strong> te envió un mensaje sobre <strong>${categoria}</strong>.</p>
         <div style="text-align: center; margin: 2rem 0;">
-          <a href="${process.env.SITE_URL}/mensajes/${solicitudId}"
-            style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">
-            Ver mensaje
-          </a>
+          <a href="${SITE_URL}/mensajes/${solicitudId}" style="background: #1dbf73; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Ver mensaje</a>
         </div>
-        <p style="color: #aaa; font-size: 12px; text-align: center; margin-top: 2rem;">
-          ServiChile — Servicios profesionales a domicilio
-        </p>
+        <p style="color: #aaa; font-size: 12px; text-align: center;">ServiChile — Servicios profesionales a domicilio</p>
       </div>
     `
   })

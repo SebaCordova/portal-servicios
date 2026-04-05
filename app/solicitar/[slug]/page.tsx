@@ -124,7 +124,7 @@ Comentarios: ${comentarios || 'Ninguno'}
         .select('id')
         .single()
       if (insertError) throw insertError
-await fetch('/api/notify/solicitud', {
+await fetch('/api/notifications/solicitud', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
