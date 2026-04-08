@@ -84,15 +84,15 @@ export default function PerfilProveedorPublicoPage() {
         .eq('verified', true)
         .single()
 
-      setProveedor(data)
+      setProveedor(data as unknown as Proveedor)
 
       if (data) {
         const { data: revs } = await supabase
           .from('reviews')
           .select('id, rating_calidad, comment, created_at, profiles!reviewer_id ( full_name )')
-          .eq('reviewee_id', data.profiles.id)
+          .eq('reviewee_id', (data.profiles as any)[0]?.id)
           .order('created_at', { ascending: false })
-        setReviews(revs ?? [])
+        setReviews((revs ?? []) as unknown as Review[])
       }
 
       setLoading(false)

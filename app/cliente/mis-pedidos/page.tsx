@@ -13,7 +13,8 @@ type Propuesta = {
   provider_profiles: {
     id: string
     rating_avg: number | null
-    profiles: { full_name: string; email: string }
+    // profiles no tiene email — el email vive en auth.users
+    profiles: { full_name: string; auth_user_id: string }
   }
 }
 
@@ -28,7 +29,8 @@ type Solicitud = {
   descripcion: string
   created_at: string
   propuesta_aceptada_id: string | null
-  categories: { name: string }
+  // Supabase retorna las relaciones como array
+  categories: { name: string }[]
   propuestas: Propuesta[]
 }
 
@@ -81,7 +83,7 @@ export default function MisPedidosPage() {
       .eq('cliente_id', profile.id)
       .order('created_at', { ascending: false })
 
-    setSolicitudes(data ?? [])
+    setSolicitudes((data ?? []) as unknown as Solicitud[])
     setLoading(false)
   }, [])
 

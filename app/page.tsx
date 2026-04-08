@@ -58,7 +58,7 @@ export default function HomePage() {
       }
       setCms(cmsMap)
       setCategorias(catsRes.data ?? [])
-      setProveedores(provsRes.data ?? [])
+      setProveedores((provsRes.data ?? []) as unknown as Proveedor[])
       setLoading(false)
     }
     loadData()
