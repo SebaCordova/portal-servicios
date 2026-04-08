@@ -12,7 +12,7 @@ type Solicitud = {
   fecha_inicio: string
   fecha_fin: string
   created_at: string
-  categories: { name: string }
+  categories: { name: string }[]
 }
 
 type Trabajo = {
@@ -121,7 +121,7 @@ export default function ProveedorPage() {
         .eq('proveedor_id', pp.id)
 
       const solicitudesConPropuesta = new Set(misProuestas?.map(p => p.solicitud_id) ?? [])
-      setSolicitudes((solicitudesData ?? []).filter(s => !solicitudesConPropuesta.has(s.id)))
+      setSolicitudes(((solicitudesData ?? []).filter(s => !solicitudesConPropuesta.has(s.id))) as unknown as Solicitud[])
     }
 
     setLoading(false)

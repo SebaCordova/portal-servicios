@@ -29,10 +29,21 @@ export async function getUser() {
   return user
 }
 
-// Obtener el rol del usuario actual
+// Obtener el rol del usuario actual leyendo la tabla profiles
+// Fix: user_metadata?.rol nunca se setea en el flujo de auth
 export async function getRol(): Promise<'admin' | 'proveedor' | 'cliente'> {
   const user = await getUser()
-  const rol = user.user_metadata?.rol
-  if (!rol) throw new Error('Sin rol asignado')
-  return rol
+  const supabase = await createSupabaseServer()
+
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('is_admin, is_provider')
+    .eq('auth_user_id', user.id)
+    .single()
+
+  if (error || !profile) throw new Error('Perfil no encontrado')
+
+  if (profile.is_admin) return 'admin'
+  if (profile.is_provider) return 'proveedor'
+  return 'cliente'
 }

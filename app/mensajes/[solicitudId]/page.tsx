@@ -83,7 +83,7 @@ export default function ChatPage() {
       .eq('solicitud_id', solicitudId)
       .order('created_at', { ascending: true })
 
-    setMensajes(data ?? [])
+    setMensajes((data ?? []) as unknown as Mensaje[])
 
     // Marcar como leídos
     const myId = pid ?? profileId

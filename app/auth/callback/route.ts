@@ -43,14 +43,23 @@ export async function GET(request: NextRequest) {
       }
 
       // Verificar si tiene perfil proveedor pendiente
-      const { data: providerProfile } = await supabase
-        .from('provider_profiles')
-        .select('id, verified')
-        .eq('profile_id', (await supabase.from('profiles').select('id').eq('auth_user_id', user.id).single()).data?.id)
+      // Fix: query anidada reemplazada por dos queries secuenciales
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('auth_user_id', user.id)
         .single()
 
-      if (providerProfile && !providerProfile.verified) {
-        return NextResponse.redirect(new URL('/proveedor/perfil', request.url))
+      if (userProfile?.id) {
+        const { data: providerProfile } = await supabase
+          .from('provider_profiles')
+          .select('id, verified')
+          .eq('profile_id', userProfile.id)
+          .single()
+
+        if (providerProfile && !providerProfile.verified) {
+          return NextResponse.redirect(new URL('/proveedor/perfil', request.url))
+        }
       }
     }
   }

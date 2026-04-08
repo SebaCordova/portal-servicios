@@ -41,13 +41,19 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
+  // Bug #2 fix: ahora se lee is_admin también para asignar el rol correcto
   const { data: profile } = await supabase
     .from('profiles')
-    .select('is_provider')
+    .select('is_admin, is_provider')
     .eq('auth_user_id', user.id)
     .single()
 
-  const rol = profile?.is_provider ? 'proveedor' : 'cliente'
+  const rol = profile?.is_admin
+    ? 'admin'
+    : profile?.is_provider
+      ? 'proveedor'
+      : 'cliente'
+
   const rutaPermitida = ROLE_ROUTES[rol]
 
   const intentandoRutaAjena = Object.values(ROLE_ROUTES)

@@ -16,8 +16,8 @@ type Solicitud = {
   fecha_fin: string
   estado: string
   created_at: string
-  categories: { name: string }
-  profiles: { full_name: string }
+  categories: { name: string }[]
+  profiles: { full_name: string }[]
 }
 
 export default function PropuestaPage() {
@@ -72,7 +72,7 @@ export default function PropuestaPage() {
         .eq('id', id)
         .single()
 
-      setSolicitud(sol)
+      setSolicitud(sol as unknown as Solicitud)
       setLoading(false)
     }
     loadData()
