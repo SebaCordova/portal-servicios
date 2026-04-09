@@ -3,26 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { validarRut, formatearRut } from '@/lib/utils/validators'
+import { COMUNAS_RM } from '@/lib/constants'
+import { useCategorias } from '@/lib/hooks/useCategorias'
 
-const CATEGORIAS = [
-  { id: '505d3851-f7a8-4dbd-ae4d-d738df48dc8c', name: 'Paisajismo, Planificación y cuidado del jardín' },
-  { id: '9abeee56-a7bc-45ef-9f9e-5aae8573429d', name: 'Retiro de ramas y poda' },
-  { id: 'a9c16462-2e91-42d3-9b8e-f8fba39ea868', name: 'Retiro de escombros' },
-  { id: '0d9821d5-bceb-46c5-85b8-64a51b23b4d8', name: 'Gasfitería domiciliaria' },
-  { id: 'd13264d6-5df6-4581-b274-1b7afa3e449d', name: 'Instalación de Riego' },
-  { id: '1b5acddd-f545-42d1-a7e1-fde2680bf400', name: 'Electricidad domiciliaria' },
-  { id: '9ff6fa40-ce6d-4f4d-949c-79ff3b2accbc', name: 'Obras menores y Remodelaciones' },
-]
-
-const COMUNAS = [
-  'Santiago', 'Providencia', 'Las Condes', 'Vitacura', 'Ñuñoa',
-  'La Florida', 'Maipú', 'Pudahuel', 'Quilicura', 'Recoleta',
-  'Independencia', 'San Miguel', 'La Cisterna', 'El Bosque', 'La Pintana',
-  'Peñalolén', 'Macul', 'San Joaquín', 'Lo Espejo', 'Cerrillos',
-  'Estación Central', 'Quinta Normal', 'Lo Prado', 'Cerro Navia', 'Renca',
-  'Huechuraba', 'Conchalí', 'Colina', 'Lampa', 'Til Til',
-  'Pirque', 'San José de Maipo', 'Puente Alto', 'La Reina', 'Lo Barnechea',
-]
 
 type Step = 1 | 2 | 3
 
@@ -43,6 +26,7 @@ export default function PerfilProveedorPage() {
   const [price, setPrice] = useState('')
 
   const [comunas, setComunas] = useState<string[]>([])
+  const { categorias: listaCategorias } = useCategorias()
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -127,7 +111,7 @@ export default function PerfilProveedorPage() {
       const serviciosData = categorias.map(category_id => ({
         provider_id: providerProfile.id,
         category_id,
-        title: CATEGORIAS.find(c => c.id === category_id)?.name ?? '',
+        title: listaCategorias.find(c => c.id === category_id)?.name ?? '',
         description: bio,
         price_clp: price ? parseInt(price) : null,
         active: false
@@ -243,7 +227,7 @@ export default function PerfilProveedorPage() {
               <div style={{ marginBottom: '1.2rem' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '8px' }}>Categorías <span style={{ color: '#e53935' }}>*</span></label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {CATEGORIAS.map(cat => (
+                  {listaCategorias.map(cat => (
                     <label key={cat.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', padding: '10px 12px', border: `1.5px solid ${categorias.includes(cat.id) ? '#1dbf73' : '#ddd'}`, borderRadius: '8px', background: categorias.includes(cat.id) ? '#f0fdf7' : '#fff' }}>
                       <input type="checkbox" checked={categorias.includes(cat.id)} onChange={() => toggleCategoria(cat.id)} style={{ accentColor: '#1dbf73' }} />
                       <span style={{ fontSize: '14px', color: '#222' }}>{cat.name}</span>
@@ -286,7 +270,7 @@ export default function PerfilProveedorPage() {
               <div style={{ marginBottom: '1.5rem' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#444', marginBottom: '8px' }}>Comunas donde trabajas <span style={{ color: '#e53935' }}>*</span></label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '320px', overflowY: 'auto', padding: '4px' }}>
-                  {COMUNAS.map(comuna => (
+                  {COMUNAS_RM.map(comuna => (
                     <label key={comuna} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '8px 10px', border: `1.5px solid ${comunas.includes(comuna) ? '#1dbf73' : '#ddd'}`, borderRadius: '8px', background: comunas.includes(comuna) ? '#f0fdf7' : '#fff' }}>
                       <input type="checkbox" checked={comunas.includes(comuna)} onChange={() => toggleComuna(comuna)} style={{ accentColor: '#1dbf73' }} />
                       <span style={{ fontSize: '13px', color: '#222' }}>{comuna}</span>
