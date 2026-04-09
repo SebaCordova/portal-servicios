@@ -209,7 +209,7 @@ console.log('booking error:', bookingError)
             <p style={{ fontSize: '36px', margin: '0 0 1rem' }}>📋</p>
             <p style={{ fontSize: '16px', fontWeight: '600', color: '#222', margin: '0 0 6px' }}>No tienes pedidos aún</p>
             <p style={{ fontSize: '13px', color: '#888', margin: '0 0 1.5rem' }}>Solicita un servicio y recibirás propuestas de profesionales.</p>
-            <a href="/" style={{ display: 'inline-block', padding: '10px 20px', background: '#1dbf73', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>
+            <a href="/categorias" style={{ display: 'inline-block', padding: '10px 20px', background: '#1dbf73', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '14px', fontWeight: '600' }}>
               Buscar servicios
             </a>
           </div>
