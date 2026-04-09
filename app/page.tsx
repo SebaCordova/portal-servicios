@@ -34,6 +34,7 @@ export default function HomePage() {
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
+  const [sinResultados, setSinResultados] = useState(false)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -67,16 +68,13 @@ export default function HomePage() {
   function handleBusqueda(e: React.FormEvent) {
     e.preventDefault()
     const texto = busqueda.trim().toLowerCase()
-    // Si no hay texto, ir a la página general de categorías
-    if (!texto) { window.location.href = '/categorias'; return }
-    // Buscar primero por coincidencia exacta al inicio del nombre
+    setSinResultados(false)
+    if (!texto) return
     const exacta = categorias.find(c => c.name.toLowerCase().startsWith(texto))
     if (exacta) { window.location.href = `/categorias/${exacta.slug}`; return }
-    // Si no, buscar por coincidencia parcial
     const parcial = categorias.find(c => c.name.toLowerCase().includes(texto))
     if (parcial) { window.location.href = `/categorias/${parcial.slug}`; return }
-    // Si no hay coincidencia, ir a la página general de categorías
-    window.location.href = '/categorias'
+    setSinResultados(true)
   }
 
   const tieneContenido = [1,2,3].some(i => cms[`contenido_${i}_titulo`])
@@ -91,12 +89,17 @@ export default function HomePage() {
             <input
               type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
               placeholder="¿Qué servicio necesitas?"
-              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit' }}
+              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit', background: '#fff' }}
             />
             <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
               Buscar
             </button>
           </form>
+          {sinResultados && (
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>
+              No encontramos esa categoría. Prueba con: gasfitería, electricidad, jardín...
+            </p>
+          )}
         </div>
       </section>
     </div>
@@ -118,12 +121,17 @@ export default function HomePage() {
             <input
               type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
               placeholder="¿Qué servicio necesitas?"
-              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit' }}
+              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit', background: '#fff' }}
             />
             <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
               {cms['hero_cta'] ?? 'Buscar'}
             </button>
           </form>
+            {sinResultados && (
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>
+              No encontramos esa categoría. Prueba con: gasfitería, electricidad, jardín...
+            </p>
+          )}
         </div>
       </section>
 
