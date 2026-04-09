@@ -3,16 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useParams, useSearchParams } from 'next/navigation'
-
-const COMUNAS = [
-  'Santiago', 'Providencia', 'Las Condes', 'Vitacura', 'Ñuñoa',
-  'La Florida', 'Maipú', 'Pudahuel', 'Quilicura', 'Recoleta',
-  'Independencia', 'San Miguel', 'La Cisterna', 'El Bosque', 'La Pintana',
-  'Peñalolén', 'Macul', 'San Joaquín', 'Lo Espejo', 'Cerrillos',
-  'Estación Central', 'Quinta Normal', 'Lo Prado', 'Cerro Navia', 'Renca',
-  'Huechuraba', 'Conchalí', 'Colina', 'Lampa', 'Til Til',
-  'Pirque', 'San José de Maipo', 'Puente Alto', 'La Reina', 'Lo Barnechea',
-]
+import { COMUNAS_RM } from '@/lib/constants'
 
 type Sector = {
   nombre: string
@@ -213,7 +204,7 @@ await fetch('/api/notifications/solicitud', {
                 <select value={comuna} onChange={e => setComuna(e.target.value)}
                   style={{ ...inputStyle, background: '#fff' }}>
                   <option value="">Selecciona una comuna</option>
-                  {COMUNAS.map(c => <option key={c} value={c}>{c}</option>)}
+                  {COMUNAS_RM.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '10px', marginBottom: '1rem' }}>

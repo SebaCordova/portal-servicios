@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'ServiChile <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM_EMAIL ?? 'ServiChile <onboarding@resend.dev>',
         to: email,
         subject: 'Actualización sobre tu solicitud de proveedor',
         html: `<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:2rem"><h1>Servi<span style="color:#1dbf73">Chile</span></h1><p>Hola ${nombre}, no pudimos aprobar tu cuenta en este momento. Si tienes dudas, responde este email.</p></div>`
