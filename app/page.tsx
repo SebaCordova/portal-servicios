@@ -66,13 +66,41 @@ export default function HomePage() {
 
   function handleBusqueda(e: React.FormEvent) {
     e.preventDefault()
-    const cat = categorias.find(c => c.name.toLowerCase().includes(busqueda.toLowerCase()))
-    if (cat) window.location.href = `/categorias/${cat.slug}`
+    const texto = busqueda.trim().toLowerCase()
+    // Si no hay texto, ir a la página general de categorías
+    if (!texto) { window.location.href = '/categorias'; return }
+    // Buscar primero por coincidencia exacta al inicio del nombre
+    const exacta = categorias.find(c => c.name.toLowerCase().startsWith(texto))
+    if (exacta) { window.location.href = `/categorias/${exacta.slug}`; return }
+    // Si no, buscar por coincidencia parcial
+    const parcial = categorias.find(c => c.name.toLowerCase().includes(texto))
+    if (parcial) { window.location.href = `/categorias/${parcial.slug}`; return }
+    // Si no hay coincidencia, ir a la página general de categorías
+    window.location.href = '/categorias'
   }
 
   const tieneContenido = [1,2,3].some(i => cms[`contenido_${i}_titulo`])
 
-  if (loading) return null
+  if (loading) return (
+    <div style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+      <section style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', padding: '5rem 2rem', textAlign: 'center' }}>
+        <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+          <div style={{ height: '48px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', marginBottom: '1rem' }} />
+          <div style={{ height: '24px', background: 'rgba(255,255,255,0.07)', borderRadius: '8px', marginBottom: '2.5rem', maxWidth: '400px', margin: '0 auto 2.5rem' }} />
+          <form onSubmit={handleBusqueda} style={{ display: 'flex', maxWidth: '560px', margin: '0 auto', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
+            <input
+              type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+              placeholder="¿Qué servicio necesitas?"
+              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit' }}
+            />
+            <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              Buscar
+            </button>
+          </form>
+        </div>
+      </section>
+    </div>
+  )
 
   return (
     <div style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
