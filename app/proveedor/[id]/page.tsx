@@ -135,10 +135,10 @@ export default function PerfilProveedorPublicoPage() {
         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0', padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '1.5rem' }}>
             <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#1dbf73', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
-              {proveedor.profiles.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+              {(proveedor.profiles as any)[0]?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
             </div>
             <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#222', margin: '0 0 6px' }}>{proveedor.profiles.full_name}</h1>
+              <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#222', margin: '0 0 6px' }}>{(proveedor.profiles as any)[0]?.full_name}</h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <Estrellas rating={proveedor.rating_avg ? Math.round(proveedor.rating_avg) : 0} size={18} />
                 {proveedor.rating_avg ? (

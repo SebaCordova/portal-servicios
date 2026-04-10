@@ -192,9 +192,9 @@ export default function HomePage() {
                     onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
                     onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
                     <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1dbf73', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700', color: '#fff', margin: '0 0 1rem' }}>
-                      {(p.profiles as any)?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+                      {(p.profiles as any)[0]?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
                     </div>
-                    <p style={{ fontSize: '14px', fontWeight: '700', color: '#222', margin: '0 0 4px' }}>{(p.profiles as any)?.full_name}</p>
+                    <p style={{ fontSize: '14px', fontWeight: '700', color: '#222', margin: '0 0 4px' }}>{(p.profiles as any)[0]?.full_name}</p>
                     <p style={{ fontSize: '12px', color: '#888', margin: '0 0 8px' }}>
                       ⭐ {p.rating_avg?.toFixed(1)} · {p.total_reviews} reseña{p.total_reviews !== 1 ? 's' : ''}
                     </p>

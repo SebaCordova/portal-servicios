@@ -57,6 +57,20 @@ export default function CategoriaPage() {
       if (!cat) { setLoading(false); return }
       setCategoria(cat)
 
+      const { data: serviciosEnCategoria } = await supabase
+        .from('services')
+        .select('provider_id')
+        .eq('category_id', cat.id)
+        .eq('active', true)
+
+      const providerIds = serviciosEnCategoria?.map(s => s.provider_id) ?? []
+
+      if (providerIds.length === 0) {
+        setProveedores([])
+        setLoading(false)
+        return
+      }
+
       const { data: provs } = await supabase
         .from('provider_profiles')
         .select(`
@@ -65,14 +79,7 @@ export default function CategoriaPage() {
           provider_zones ( comuna )
         `)
         .eq('verified', true)
-        .in('id', 
-          (await supabase
-            .from('services')
-            .select('provider_id')
-            .eq('category_id', cat.id)
-            .eq('active', true)
-          ).data?.map(s => s.provider_id) ?? []
-        )
+        .in('id', providerIds)
 
       setProveedores((provs ?? []) as any)
       setLoading(false)
