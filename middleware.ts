@@ -3,6 +3,14 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 const PUBLIC_ROUTES = ['/', '/login', '/categorias']
 
+function isPublicRoute(pathname: string): boolean {
+  if (PUBLIC_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))) return true
+  // Perfil público de proveedor: /proveedor/[id] (exactamente 2 segmentos)
+  const parts = pathname.split('/').filter(Boolean)
+  if (parts.length === 2 && parts[0] === 'proveedor') return true
+  return false
+}
+
 const ROLE_ROUTES: Record<string, string> = {
   admin:     '/admin',
   proveedor: '/proveedor',
@@ -12,10 +20,7 @@ const ROLE_ROUTES: Record<string, string> = {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  const isPublic = PUBLIC_ROUTES.some(
-    route => pathname === route || pathname.startsWith(route + '/')
-  )
-  if (isPublic) return NextResponse.next()
+  if (isPublicRoute(pathname)) return NextResponse.next()
 
   let response = NextResponse.next({ request })
 
