@@ -4,21 +4,13 @@ import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 
 type CmsData = Record<string, string | null>
-type Categoria = { id: string; name: string; slug: string; icon: string }
+type Categoria = { id: string; name: string; slug: string; emoji: string }
 type Proveedor = {
   id: string
   rating_avg: number | null
   total_reviews: number
   profiles: { full_name: string } | { full_name: string }[] | null
   services: { title: string }[] | null
-}
-
-function getEmoji(icon: string) {
-  const map: Record<string, string> = {
-    flower: '🌸', scissors: '✂️', trash: '🗑️',
-    wrench: '🔧', droplets: '💧', zap: '⚡', hammer: '🔨'
-  }
-  return map[icon] ?? '🛠️'
 }
 
 function getNombre(profiles: Proveedor['profiles']): string {
@@ -49,7 +41,7 @@ export default function HomePage() {
       try {
         const [cmsRes, catsRes, provsRes] = await Promise.all([
           supabase.from('cms_home').select('clave, valor'),
-          supabase.from('categories').select('id, name, slug, icon').eq('activa', true).order('name'),
+          supabase.from('categories').select('id, name, slug, emoji').eq('activa', true).order('name'),
           supabase.from('provider_profiles').select(`
             id, rating_avg, total_reviews,
             profiles ( full_name ),
@@ -114,7 +106,7 @@ export default function HomePage() {
               {cms['hero_cta'] ?? 'Buscar'}
             </button>
           </form>
-          {sinResultados && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>No encontramos esa categoría. Prueba con: gasfitería, electricidad, jardín...</p>}
+          {sinResultados && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>No encontramos esa categoría. Prueba con alguno de los servicios listados abajo.</p>}
         </div>
       </section>
 
@@ -128,7 +120,7 @@ export default function HomePage() {
                 <div style={{ background: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', border: '1px solid #e0e0e0', cursor: 'pointer' }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#f0fdf7'; e.currentTarget.style.borderColor = '#1dbf73' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '#f9f9f9'; e.currentTarget.style.borderColor = '#e0e0e0' }}>
-                  <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>{getEmoji(cat.icon)}</div>
+                  <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>{cat.emoji ?? '🛠️'}</div>
                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#222', margin: 0 }}>{cat.name}</p>
                 </div>
               </a>
@@ -193,7 +185,7 @@ export default function HomePage() {
         <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
           <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#fff', margin: '0 0 1rem' }}>¿Eres profesional? Ofrece tus servicios</h2>
           <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', margin: '0 0 2rem', lineHeight: '1.5' }}>
-            Únete a ServiChile y conecta con clientes que necesitan tu expertise
+            Únete a {cms['nombre_plataforma'] ?? 'ServiChile'} y conecta con clientes que necesitan tu expertise
           </p>
           <a href="/login" style={{ display: 'inline-block', padding: '14px 32px', background: '#fff', color: '#1dbf73', borderRadius: '8px', textDecoration: 'none', fontSize: '16px', fontWeight: '700' }}>
             Comenzar ahora →

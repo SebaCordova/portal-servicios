@@ -10,14 +10,9 @@ type Proveedor = {
   price_per_hour: number | null
   rating_avg: number | null
   total_reviews: number
-  profiles: {
-    full_name: string
-    avatar_url: string | null
-    phone: string
-    id: string
-  }
+  profiles: { full_name: string; avatar_url: string | null; phone: string; id: string } | null
   provider_zones: { comuna: string }[]
-  services: { title: string; categories: { slug: string } }[]
+  services: { title: string; categories: { slug: string; emoji: string; requiere_cotizacion: boolean } | null }[]
 }
 
 type Review = {
@@ -25,15 +20,7 @@ type Review = {
   rating_calidad: number
   comment: string
   created_at: string
-  profiles: { full_name: string }
-}
-
-function getEmoji(slug: string) {
-  const map: Record<string, string> = {
-    paisajismo: '🌸', 'retiro-ramas': '✂️', 'retiro-escombros': '🗑️',
-    gasfiteria: '🔧', riego: '💧', electricidad: '⚡', remodelaciones: '🔨'
-  }
-  return map[slug] ?? '🛠️'
+  profiles: { full_name: string } | null
 }
 
 function Estrellas({ rating, size = 16 }: { rating: number; size?: number }) {
@@ -53,6 +40,12 @@ function getRatingLabel(rating: number) {
   return 'Regular'
 }
 
+function getProfile(proveedor: Proveedor) {
+  if (!proveedor.profiles) return null
+  if (Array.isArray(proveedor.profiles)) return proveedor.profiles[0] ?? null
+  return proveedor.profiles
+}
+
 export default function PerfilProveedorPublicoPage() {
   const params = useParams()
   const id = params.id as string
@@ -61,6 +54,7 @@ export default function PerfilProveedorPublicoPage() {
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [nombrePlataforma, setNombrePlataforma] = useState('ServiChile')
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -72,13 +66,20 @@ export default function PerfilProveedorPublicoPage() {
       const { data: { user } } = await supabase.auth.getUser()
       setIsLoggedIn(!!user)
 
+      const { data: cms } = await supabase
+        .from('cms_home')
+        .select('clave, valor')
+        .eq('clave', 'nombre_plataforma')
+        .single()
+      if (cms?.valor) setNombrePlataforma(cms.valor)
+
       const { data } = await supabase
         .from('provider_profiles')
         .select(`
           id, bio, price_per_hour, rating_avg, total_reviews,
           profiles ( id, full_name, avatar_url, phone ),
           provider_zones ( comuna ),
-          services ( title, categories ( slug ) )
+          services ( title, categories ( slug, emoji, requiere_cotizacion ) )
         `)
         .eq('id', id)
         .eq('verified', true)
@@ -87,12 +88,15 @@ export default function PerfilProveedorPublicoPage() {
       setProveedor(data as unknown as Proveedor)
 
       if (data) {
-        const { data: revs } = await supabase
-          .from('reviews')
-          .select('id, rating_calidad, comment, created_at, profiles!reviewer_id ( full_name )')
-          .eq('reviewee_id', (data.profiles as any)[0]?.id)
-          .order('created_at', { ascending: false })
-        setReviews((revs ?? []) as unknown as Review[])
+        const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles
+        if (profile?.id) {
+          const { data: revs } = await supabase
+            .from('reviews')
+            .select('id, rating_calidad, comment, created_at, profiles!reviewer_id ( full_name )')
+            .eq('reviewee_id', profile.id)
+            .order('created_at', { ascending: false })
+          setReviews((revs ?? []) as unknown as Review[])
+        }
       }
 
       setLoading(false)
@@ -100,27 +104,25 @@ export default function PerfilProveedorPublicoPage() {
     loadData()
   }, [id])
 
-  if (loading) {
-    return (
-      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
-        <p style={{ color: '#888' }}>Cargando...</p>
-      </main>
-    )
-  }
+  if (loading) return (
+    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+      <p style={{ color: '#888' }}>Cargando...</p>
+    </main>
+  )
 
-  if (!proveedor) {
-    return (
-      <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
-        <p style={{ color: '#888' }}>Proveedor no encontrado.</p>
-      </main>
-    )
-  }
+  if (!proveedor) return (
+    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
+      <p style={{ color: '#888' }}>Proveedor no encontrado.</p>
+    </main>
+  )
 
-  const slugCotizacion = proveedor.services.find(s =>
-    s.categories?.slug === 'retiro-ramas' || s.categories?.slug === 'retiro-escombros'
-  )?.categories?.slug
+  const profile = getProfile(proveedor)
+  const nombre = profile?.full_name ?? 'Profesional'
+  const initials = nombre.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
 
-  // Distribución de ratings
+  const servicioConCotizacion = proveedor.services.find(s => s.categories?.requiere_cotizacion)
+  const slugCotizacion = servicioConCotizacion?.categories?.slug ?? 'general'
+
   const distribucion = [5,4,3,2,1].map(stars => ({
     stars,
     count: reviews.filter(r => r.rating_calidad === stars).length,
@@ -131,21 +133,19 @@ export default function PerfilProveedorPublicoPage() {
     <main style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem 1.5rem' }}>
 
-        {/* Card principal */}
         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0', padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.5rem', marginBottom: '1.5rem' }}>
             <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#1dbf73', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px', fontWeight: '700', color: '#fff', flexShrink: 0 }}>
-              {(proveedor.profiles as any)[0]?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+              {initials}
             </div>
             <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#222', margin: '0 0 6px' }}>{(proveedor.profiles as any)[0]?.full_name}</h1>
+              <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#222', margin: '0 0 6px' }}>{nombre}</h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <Estrellas rating={proveedor.rating_avg ? Math.round(proveedor.rating_avg) : 0} size={18} />
-                {proveedor.rating_avg ? (
-                  <span style={{ fontSize: '14px', color: '#666' }}>{proveedor.rating_avg.toFixed(1)} · {proveedor.total_reviews} reseña{proveedor.total_reviews !== 1 ? 's' : ''}</span>
-                ) : (
-                  <span style={{ fontSize: '13px', color: '#aaa' }}>Sin reseñas aún</span>
-                )}
+                {proveedor.rating_avg
+                  ? <span style={{ fontSize: '14px', color: '#666' }}>{proveedor.rating_avg.toFixed(1)} · {proveedor.total_reviews} reseña{proveedor.total_reviews !== 1 ? 's' : ''}</span>
+                  : <span style={{ fontSize: '13px', color: '#aaa' }}>Sin reseñas aún</span>
+                }
               </div>
               <span style={{ fontSize: '12px', background: '#d1fae5', color: '#065f46', padding: '3px 10px', borderRadius: '20px' }}>✓ Verificado</span>
             </div>
@@ -170,7 +170,7 @@ export default function PerfilProveedorPublicoPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
               {proveedor.services.map((s, i) => (
                 <span key={i} style={{ fontSize: '13px', background: '#f0f0ff', color: '#3730a3', padding: '5px 12px', borderRadius: '20px', border: '1px solid #e0e0ff' }}>
-                  {getEmoji(s.categories?.slug ?? '')} {s.title}
+                  {s.categories?.emoji ?? '🛠️'} {s.title}
                 </span>
               ))}
             </div>
@@ -185,9 +185,8 @@ export default function PerfilProveedorPublicoPage() {
             </div>
           </div>
 
-          {/* CTA */}
           {isLoggedIn ? (
-            <a href={`/solicitar/${slugCotizacion ?? 'general'}?proveedor=${proveedor.id}`}
+            <a href={`/solicitar/${slugCotizacion}?proveedor=${proveedor.id}`}
               style={{ display: 'block', padding: '13px', background: '#1dbf73', color: '#fff', borderRadius: '8px', textDecoration: 'none', fontSize: '15px', fontWeight: '600', textAlign: 'center' }}>
               Pedir cotización
             </a>
@@ -199,9 +198,8 @@ export default function PerfilProveedorPublicoPage() {
           )}
         </div>
 
-        {/* Reseñas */}
         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0', padding: '2rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#222', margin: '0 0 0.5rem' }}>Reseñas</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#222', margin: '0 0 1.5rem' }}>Reseñas</h2>
 
           {reviews.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '2rem 0' }}>
@@ -210,7 +208,6 @@ export default function PerfilProveedorPublicoPage() {
             </div>
           ) : (
             <>
-              {/* Resumen */}
               <div style={{ display: 'flex', gap: '2rem', marginBottom: '2rem', paddingBottom: '2rem', borderBottom: '1px solid #f0f0f0' }}>
                 <div>
                   <p style={{ fontSize: '28px', fontWeight: '800', color: '#1dbf73', margin: '0 0 4px' }}>
@@ -232,7 +229,6 @@ export default function PerfilProveedorPublicoPage() {
                 </div>
               </div>
 
-              {/* Listado */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {reviews.map(r => (
                   <div key={r.id} style={{ borderBottom: '1px solid #f0f0f0', paddingBottom: '1.5rem' }}>
@@ -245,7 +241,7 @@ export default function PerfilProveedorPublicoPage() {
                           <p style={{ fontSize: '14px', fontWeight: '600', color: '#222', margin: '0 0 2px' }}>{r.profiles?.full_name}</p>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Estrellas rating={r.rating_calidad} size={13} />
-                            <span style={{ fontSize: '11px', color: '#888' }}>· Contratado en ServiChile</span>
+                            <span style={{ fontSize: '11px', color: '#888' }}>· Contratado en {nombrePlataforma}</span>
                           </div>
                         </div>
                       </div>
