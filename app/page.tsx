@@ -4,20 +4,13 @@ import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 
 type CmsData = Record<string, string | null>
-
-type Categoria = {
-  id: string
-  name: string
-  slug: string
-  icon: string
-}
-
+type Categoria = { id: string; name: string; slug: string; icon: string }
 type Proveedor = {
   id: string
   rating_avg: number | null
   total_reviews: number
-  profiles: { full_name: string }
-  services: { title: string }[]
+  profiles: { full_name: string } | { full_name: string }[] | null
+  services: { title: string }[] | null
 }
 
 function getEmoji(icon: string) {
@@ -26,6 +19,16 @@ function getEmoji(icon: string) {
     wrench: '🔧', droplets: '💧', zap: '⚡', hammer: '🔨'
   }
   return map[icon] ?? '🛠️'
+}
+
+function getNombre(profiles: Proveedor['profiles']): string {
+  if (!profiles) return 'Profesional'
+  if (Array.isArray(profiles)) return profiles[0]?.full_name ?? 'Profesional'
+  return (profiles as { full_name: string }).full_name ?? 'Profesional'
+}
+
+function getInitials(name: string) {
+  return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 }
 
 export default function HomePage() {
@@ -43,24 +46,26 @@ export default function HomePage() {
 
   useEffect(() => {
     async function loadData() {
-      const [cmsRes, catsRes, provsRes] = await Promise.all([
-        supabase.from('cms_home').select('clave, valor'),
-        supabase.from('categories').select('id, name, slug, icon').eq('activa', true).order('name'),
-        supabase.from('provider_profiles').select(`
-          id, rating_avg, total_reviews,
-          profiles ( full_name ),
-          services ( title )
-        `).eq('verified', true).not('rating_avg', 'is', null).order('rating_avg', { ascending: false }).limit(4)
-      ])
-
-      const cmsMap: CmsData = {}
-      for (const item of cmsRes.data ?? []) {
-        cmsMap[item.clave] = item.valor
+      try {
+        const [cmsRes, catsRes, provsRes] = await Promise.all([
+          supabase.from('cms_home').select('clave, valor'),
+          supabase.from('categories').select('id, name, slug, icon').eq('activa', true).order('name'),
+          supabase.from('provider_profiles').select(`
+            id, rating_avg, total_reviews,
+            profiles ( full_name ),
+            services ( title )
+          `).eq('verified', true).not('rating_avg', 'is', null).order('rating_avg', { ascending: false }).limit(4)
+        ])
+        const cmsMap: CmsData = {}
+        for (const item of cmsRes.data ?? []) cmsMap[item.clave] = item.valor
+        setCms(cmsMap)
+        setCategorias(catsRes.data ?? [])
+        setProveedores((provsRes.data ?? []) as unknown as Proveedor[])
+      } catch (e) {
+        console.error('Error cargando datos:', e)
+      } finally {
+        setLoading(false)
       }
-      setCms(cmsMap)
-      setCategorias(catsRes.data ?? [])
-      setProveedores((provsRes.data ?? []) as unknown as Proveedor[])
-      setLoading(false)
     }
     loadData()
   }, [])
@@ -84,22 +89,7 @@ export default function HomePage() {
       <section style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', padding: '5rem 2rem', textAlign: 'center' }}>
         <div style={{ maxWidth: '700px', margin: '0 auto' }}>
           <div style={{ height: '48px', background: 'rgba(255,255,255,0.1)', borderRadius: '8px', marginBottom: '1rem' }} />
-          <div style={{ height: '24px', background: 'rgba(255,255,255,0.07)', borderRadius: '8px', marginBottom: '2.5rem', maxWidth: '400px', margin: '0 auto 2.5rem' }} />
-          <form onSubmit={handleBusqueda} style={{ display: 'flex', maxWidth: '560px', margin: '0 auto', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
-            <input
-              type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
-              placeholder="¿Qué servicio necesitas?"
-              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit', background: '#fff' }}
-            />
-            <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-              Buscar
-            </button>
-          </form>
-          {sinResultados && (
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>
-              No encontramos esa categoría. Prueba con: gasfitería, electricidad, jardín...
-            </p>
-          )}
+          <div style={{ height: '24px', background: 'rgba(255,255,255,0.07)', borderRadius: '8px', marginBottom: '2.5rem' }} />
         </div>
       </section>
     </div>
@@ -108,7 +98,6 @@ export default function HomePage() {
   return (
     <div style={{ fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
 
-      {/* Hero */}
       <section style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', padding: '5rem 2rem', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
         <div style={{ maxWidth: '700px', margin: '0 auto', position: 'relative', zIndex: 1 }}>
           <h1 style={{ fontSize: '42px', fontWeight: '900', color: '#fff', margin: '0 0 1rem', lineHeight: '1.2', letterSpacing: '-1px' }}>
@@ -117,25 +106,18 @@ export default function HomePage() {
           <p style={{ fontSize: '18px', color: 'rgba(255,255,255,0.7)', margin: '0 0 2.5rem', lineHeight: '1.5' }}>
             {cms['hero_subtitulo'] ?? 'Encuentra profesionales verificados cerca de ti'}
           </p>
-          <form onSubmit={handleBusqueda} style={{ display: 'flex', gap: '0', maxWidth: '560px', margin: '0 auto', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
-            <input
-              type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+          <form onSubmit={handleBusqueda} style={{ display: 'flex', maxWidth: '560px', margin: '0 auto', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
+            <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
               placeholder="¿Qué servicio necesitas?"
-              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit', background: '#fff' }}
-            />
-            <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit', background: '#fff' }} />
+            <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit' }}>
               {cms['hero_cta'] ?? 'Buscar'}
             </button>
           </form>
-            {sinResultados && (
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>
-              No encontramos esa categoría. Prueba con: gasfitería, electricidad, jardín...
-            </p>
-          )}
+          {sinResultados && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>No encontramos esa categoría. Prueba con: gasfitería, electricidad, jardín...</p>}
         </div>
       </section>
 
-      {/* Categorías */}
       <section style={{ padding: '4rem 2rem', background: '#fff' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#222', margin: '0 0 0.5rem', textAlign: 'center' }}>Servicios disponibles</h2>
@@ -143,11 +125,11 @@ export default function HomePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem' }}>
             {categorias.map(cat => (
               <a key={cat.id} href={`/categorias/${cat.slug}`} style={{ textDecoration: 'none' }}>
-                <div style={{ background: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', border: '1px solid #e0e0e0', cursor: 'pointer', transition: 'all 0.2s' }}
+                <div style={{ background: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', textAlign: 'center', border: '1px solid #e0e0e0', cursor: 'pointer' }}
                   onMouseEnter={e => { e.currentTarget.style.background = '#f0fdf7'; e.currentTarget.style.borderColor = '#1dbf73' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '#f9f9f9'; e.currentTarget.style.borderColor = '#e0e0e0' }}>
                   <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>{getEmoji(cat.icon)}</div>
-                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#222', margin: 0, lineHeight: '1.3' }}>{cat.name}</p>
+                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#222', margin: 0 }}>{cat.name}</p>
                 </div>
               </a>
             ))}
@@ -155,7 +137,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Cómo funciona */}
       <section style={{ padding: '4rem 2rem', background: '#f5f5f5' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto' }}>
           <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#222', margin: '0 0 3rem', textAlign: 'center' }}>
@@ -164,9 +145,7 @@ export default function HomePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
             {[1,2,3].map(paso => (
               <div key={paso} style={{ textAlign: 'center' }}>
-                <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#1dbf73', color: '#fff', fontSize: '22px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                  {paso}
-                </div>
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#1dbf73', color: '#fff', fontSize: '22px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>{paso}</div>
                 <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 8px' }}>
                   {cms[`paso${paso}_titulo`] ?? ['Publica tu solicitud', 'Recibe propuestas', 'Elige y contrata'][paso-1]}
                 </h3>
@@ -179,40 +158,40 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Proveedores destacados */}
       {proveedores.length > 0 && (
         <section style={{ padding: '4rem 2rem', background: '#fff' }}>
           <div style={{ maxWidth: '900px', margin: '0 auto' }}>
             <h2 style={{ fontSize: '26px', fontWeight: '800', color: '#222', margin: '0 0 0.5rem', textAlign: 'center' }}>Profesionales destacados</h2>
             <p style={{ fontSize: '15px', color: '#888', textAlign: 'center', margin: '0 0 2.5rem' }}>Los mejor evaluados por nuestros clientes</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
-              {proveedores.map(p => (
-                <a key={p.id} href={`/proveedor/${p.id}`} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e0e0e0', cursor: 'pointer' }}
-                    onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
-                    onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1dbf73', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700', color: '#fff', margin: '0 0 1rem' }}>
-                      {(p.profiles as any)[0]?.full_name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)}
+              {proveedores.map(p => {
+                const nombre = getNombre(p.profiles)
+                const servicio = Array.isArray(p.services) ? p.services[0]?.title : null
+                return (
+                  <a key={p.id} href={`/proveedor/${p.id}`} style={{ textDecoration: 'none' }}>
+                    <div style={{ background: '#f9f9f9', borderRadius: '12px', padding: '1.5rem', border: '1px solid #e0e0e0', cursor: 'pointer' }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#1dbf73', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700', color: '#fff', margin: '0 0 1rem' }}>
+                        {getInitials(nombre)}
+                      </div>
+                      <p style={{ fontSize: '14px', fontWeight: '700', color: '#222', margin: '0 0 4px' }}>{nombre}</p>
+                      <p style={{ fontSize: '12px', color: '#888', margin: '0 0 8px' }}>
+                        ⭐ {p.rating_avg?.toFixed(1)} · {p.total_reviews} reseña{p.total_reviews !== 1 ? 's' : ''}
+                      </p>
+                      {servicio && <p style={{ fontSize: '12px', color: '#555', margin: 0 }}>{servicio}</p>}
                     </div>
-                    <p style={{ fontSize: '14px', fontWeight: '700', color: '#222', margin: '0 0 4px' }}>{(p.profiles as any)[0]?.full_name}</p>
-                    <p style={{ fontSize: '12px', color: '#888', margin: '0 0 8px' }}>
-                      ⭐ {p.rating_avg?.toFixed(1)} · {p.total_reviews} reseña{p.total_reviews !== 1 ? 's' : ''}
-                    </p>
-                    <p style={{ fontSize: '12px', color: '#555', margin: 0 }}>{(p.services as any)?.[0]?.title}</p>
-                  </div>
-                </a>
-              ))}
+                  </a>
+                )
+              })}
             </div>
           </div>
         </section>
       )}
 
-      {/* Banner proveedor */}
       <section style={{ padding: '4rem 2rem', background: '#1dbf73' }}>
         <div style={{ maxWidth: '700px', margin: '0 auto', textAlign: 'center' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#fff', margin: '0 0 1rem' }}>
-            ¿Eres profesional? Ofrece tus servicios
-          </h2>
+          <h2 style={{ fontSize: '28px', fontWeight: '800', color: '#fff', margin: '0 0 1rem' }}>¿Eres profesional? Ofrece tus servicios</h2>
           <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', margin: '0 0 2rem', lineHeight: '1.5' }}>
             Únete a ServiChile y conecta con clientes que necesitan tu expertise
           </p>
@@ -222,7 +201,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Slots de contenido */}
       {tieneContenido && (
         <section style={{ padding: '4rem 2rem', background: '#f5f5f5' }}>
           <div style={{ maxWidth: '900px', margin: '0 auto' }}>
@@ -238,9 +216,7 @@ export default function HomePage() {
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0', overflow: 'hidden', cursor: 'pointer' }}
                       onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.1)'}
                       onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-                      {cms[`contenido_${i}_imagen`] && (
-                        <img src={cms[`contenido_${i}_imagen`]!} alt={titulo} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />
-                      )}
+                      {cms[`contenido_${i}_imagen`] && <img src={cms[`contenido_${i}_imagen`]!} alt={titulo} style={{ width: '100%', height: '160px', objectFit: 'cover' }} />}
                       <div style={{ padding: '1.2rem' }}>
                         <p style={{ fontSize: '15px', fontWeight: '700', color: '#222', margin: '0 0 6px' }}>{titulo}</p>
                         {descripcion && <p style={{ fontSize: '13px', color: '#666', margin: 0, lineHeight: '1.4' }}>{descripcion}</p>}
@@ -254,7 +230,6 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Footer */}
       <footer style={{ background: '#1a1a2e', padding: '2rem', textAlign: 'center' }}>
         <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
           {cms['footer_texto'] ?? 'ServiChile — Servicios profesionales a domicilio'}
