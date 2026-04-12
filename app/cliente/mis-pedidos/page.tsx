@@ -10,6 +10,7 @@ type Propuesta = {
   fecha_hora_estimada: string
   estado: string
   razon_cancelacion: string | null
+  bookings: { id: string; status: string; reviews: { id: string }[] }[]
   provider_profiles: {
     id: string
     rating_avg: number | null
@@ -48,6 +49,8 @@ export default function MisPedidosPage() {
   const [accionando, setAccionando] = useState<string | null>(null)
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [razonSeleccionada, setRazonSeleccionada] = useState('')
+  const [ratingSeleccionado, setRatingSeleccionado] = useState<number | null>(null)
+  const [comentarioResena, setComentarioResena] = useState('')
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -74,6 +77,7 @@ export default function MisPedidosPage() {
         categories ( name ),
         propuestas!solicitud_id (
           id, precio_clp, descripcion, fecha_hora_estimada, estado, razon_cancelacion,
+          bookings!propuesta_id ( id, status, reviews ( id ) ),
           provider_profiles (
             id, rating_avg,
             profiles ( full_name, email )
@@ -160,6 +164,37 @@ console.log('booking error:', bookingError)
     setRazonSeleccionada('')
     await cargarSolicitudes()
     setAccionando(null)
+  }
+
+  async function enviarResena(
+    bookingId: string,
+    proveedorProfileId: string,
+    rating: number,
+    comment: string
+  ) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: profile } = await supabase.from('profiles').select('id').eq('auth_user_id', user.id).single()
+    if (!profile) return
+    await supabase.from('reviews').insert({
+      reviewer_id: profile.id,
+      reviewee_id: proveedorProfileId,
+      booking_id: bookingId,
+      rating_calidad: rating,
+      rating,
+      comment
+    })
+    const { data: reviews } = await supabase.from('reviews').select('rating_calidad').eq('reviewee_id', proveedorProfileId)
+    if (reviews && reviews.length > 0) {
+      const avg = reviews.reduce((sum, r) => sum + r.rating_calidad, 0) / reviews.length
+      await supabase.from('provider_profiles').update({
+        rating_avg: Math.round(avg * 10) / 10,
+        total_reviews: reviews.length
+      }).eq('id', proveedorProfileId)
+    }
+    setRatingSeleccionado(null)
+    setComentarioResena('')
+    await cargarSolicitudes()
   }
 
   function formatFecha(fecha: string) {
@@ -325,6 +360,32 @@ console.log('booking error:', bookingError)
                                   </div>
                                 </div>
                               )}
+
+                              {esAceptada && (() => {
+                                const booking = prop.bookings?.[0]
+                                const bookingStatus = booking?.status
+                                const bookingId = booking?.id
+                                const yaReseño = (booking?.reviews?.length ?? 0) > 0
+                                return bookingStatus === 'completado' && !yaReseño ? (
+                                  <div style={{ marginTop: '12px', padding: '14px', background: '#f0fdf7', borderRadius: '8px', border: '1px solid #d1fae5' }}>
+                                    <p style={{ fontSize: '13px', fontWeight: '600', color: '#065f46', margin: '0 0 10px' }}>¿Cómo te fue con este servicio?</p>
+                                    <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                                      {[1,2,3,4,5].map(star => (
+                                        <button key={star} onClick={() => setRatingSeleccionado(star)}
+                                          style={{ fontSize: '22px', background: 'none', border: 'none', cursor: 'pointer', color: star <= (ratingSeleccionado ?? 0) ? '#1dbf73' : '#ddd' }}>★</button>
+                                      ))}
+                                    </div>
+                                    <textarea value={comentarioResena} onChange={e => setComentarioResena(e.target.value)}
+                                      placeholder="Cuéntanos cómo fue tu experiencia (opcional)..." rows={2}
+                                      style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                                    <button onClick={() => enviarResena(bookingId, prop.provider_profiles.id, ratingSeleccionado!, comentarioResena)}
+                                      disabled={!ratingSeleccionado}
+                                      style={{ marginTop: '8px', width: '100%', padding: '9px', background: ratingSeleccionado ? '#1dbf73' : '#a8e6c8', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: ratingSeleccionado ? 'pointer' : 'not-allowed', fontFamily: 'inherit' }}>
+                                      Enviar reseña
+                                    </button>
+                                  </div>
+                                ) : null
+                              })()}
                             </div>
                           )
                         })}

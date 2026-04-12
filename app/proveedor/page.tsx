@@ -188,6 +188,19 @@ export default function ProveedorPage() {
                     </div>
                     <span style={{ fontSize: '12px', background: '#dbeafe', color: '#1e40af', padding: '4px 10px', borderRadius: '20px' }}>Confirmado</span>
                   </div>
+                  <button
+                    onClick={async () => {
+                      await fetch('/api/bookings/completar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ bookingId: t.id })
+                      })
+                      loadData()
+                    }}
+                    style={{ marginTop: '10px', width: '100%', padding: '9px', background: '#fff', color: '#1dbf73', border: '1.5px solid #1dbf73', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}
+                  >
+                    Marcar como completado
+                  </button>
                 </div>
               ))}
             </div>
