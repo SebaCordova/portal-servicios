@@ -6,17 +6,18 @@ import { createBrowserClient } from '@supabase/ssr'
 type Categoria = {
   id: string
   name: string
-  slug: string
-  emoji: string
-  activa: boolean
-  requiere_cotizacion: boolean
-  created_at: string
+  slug: string | null
+  emoji: string | null
+  icon: string | null
+  activa: boolean | null
+  requiere_cotizacion: boolean | null
 }
 
-const EMPTY: Omit<Categoria, 'id' | 'created_at'> = {
+const EMPTY: Omit<Categoria, 'id'> = {
   name: '',
   slug: '',
-  emoji: '🛠️',
+  emoji: '',
+  icon: null,
   activa: true,
   requiere_cotizacion: true,
 }
@@ -51,10 +52,11 @@ export default function AdminCategoriasPage() {
   }, [])
 
   async function cargarCategorias() {
-    const { data } = await sb
+    const { data, error } = await sb
       .from('categories')
-      .select('id, name, slug, emoji, activa, requiere_cotizacion, created_at')
+      .select('id, name, slug, emoji, icon, activa, requiere_cotizacion')
       .order('name', { ascending: true })
+    if (error) console.error('Error cargando categorías:', error)
     setCategorias(data ?? [])
     setLoading(false)
   }
@@ -79,10 +81,11 @@ export default function AdminCategoriasPage() {
   function abrirEditar(cat: Categoria) {
     setForm({
       name: cat.name,
-      slug: cat.slug,
-      emoji: cat.emoji,
-      activa: cat.activa,
-      requiere_cotizacion: cat.requiere_cotizacion,
+      slug: cat.slug ?? '',
+      emoji: cat.emoji ?? '',
+      icon: cat.icon,
+      activa: cat.activa ?? true,
+      requiere_cotizacion: cat.requiere_cotizacion ?? true,
     })
     setEditando(cat.id)
     setCreando(false)
@@ -98,34 +101,31 @@ export default function AdminCategoriasPage() {
   async function guardar() {
     if (!form.name.trim()) { setError('El nombre es obligatorio.'); return }
     if (!form.slug.trim()) { setError('El slug es obligatorio.'); return }
-    if (!form.emoji.trim()) { setError('El emoji es obligatorio.'); return }
 
     setGuardando(true)
     setError('')
 
+    const payload = {
+      name: form.name.trim(),
+      slug: form.slug.trim(),
+      emoji: form.emoji.trim() || '🛠️',
+      activa: form.activa,
+      requiere_cotizacion: form.requiere_cotizacion,
+    }
+
     if (creando) {
-      const { error: insertError } = await sb.from('categories').insert({
-        name: form.name.trim(),
-        slug: form.slug.trim(),
-        emoji: form.emoji.trim(),
-        activa: form.activa,
-        requiere_cotizacion: form.requiere_cotizacion,
-      })
+      const { error: insertError } = await sb.from('categories').insert(payload)
       if (insertError) {
-        setError(insertError.message.includes('unique') ? 'Ya existe una categoría con ese slug.' : 'Error al crear la categoría.')
+        setError(insertError.message.includes('unique') || insertError.message.includes('duplicate')
+          ? 'Ya existe una categoría con ese slug.'
+          : `Error al crear: ${insertError.message}`)
         setGuardando(false)
         return
       }
     } else if (editando) {
-      const { error: updateError } = await sb.from('categories').update({
-        name: form.name.trim(),
-        slug: form.slug.trim(),
-        emoji: form.emoji.trim(),
-        activa: form.activa,
-        requiere_cotizacion: form.requiere_cotizacion,
-      }).eq('id', editando)
+      const { error: updateError } = await sb.from('categories').update(payload).eq('id', editando)
       if (updateError) {
-        setError('Error al actualizar la categoría.')
+        setError(`Error al actualizar: ${updateError.message}`)
         setGuardando(false)
         return
       }
@@ -162,7 +162,7 @@ export default function AdminCategoriasPage() {
         <div>
           <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#222', margin: '0 0 0.5rem' }}>Categorías</h1>
           <p style={{ fontSize: '14px', color: '#888', margin: 0 }}>
-            {activas} activa{activas !== 1 ? 's' : ''} · {inactivas} inactiva{inactivas !== 1 ? 's' : ''}
+            {categorias.length} en total · {activas} activa{activas !== 1 ? 's' : ''} · {inactivas} inactiva{inactivas !== 1 ? 's' : ''}
           </p>
         </div>
         {!creando && !editando && (
@@ -173,18 +173,15 @@ export default function AdminCategoriasPage() {
         )}
       </div>
 
-      {/* Formulario crear / editar */}
       {(creando || editando) && (
         <div style={{ background: '#fff', borderRadius: '12px', border: '1.5px solid #1dbf73', padding: '1.5rem', marginBottom: '1.5rem', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1.2rem' }}>
             {creando ? 'Nueva categoría' : 'Editar categoría'}
           </h2>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '1rem', marginBottom: '1rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#888', marginBottom: '4px' }}>
-                NOMBRE *
-              </label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#888', marginBottom: '4px' }}>NOMBRE *</label>
               <input
                 type="text"
                 value={form.name}
@@ -202,25 +199,25 @@ export default function AdminCategoriasPage() {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#888', marginBottom: '4px' }}>
-                EMOJI *
+                EMOJI <span style={{ color: '#aaa', fontWeight: '400' }}>(opcional)</span>
               </label>
               <input
                 type="text"
-                value={form.emoji}
+                value={form.emoji ?? ''}
                 onChange={e => setForm(prev => ({ ...prev, emoji: e.target.value }))}
                 placeholder="🛠️"
-                style={{ ...inputStyle, width: '80px' }}
+                style={{ ...inputStyle, width: '80px', textAlign: 'center', fontSize: '20px' }}
               />
             </div>
           </div>
 
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: '#888', marginBottom: '4px' }}>
-              SLUG * <span style={{ fontSize: '11px', color: '#aaa', fontWeight: '400' }}>(se usa en la URL: /categorias/slug)</span>
+              SLUG * <span style={{ fontSize: '11px', color: '#aaa', fontWeight: '400' }}>(URL: /categorias/slug)</span>
             </label>
             <input
               type="text"
-              value={form.slug}
+              value={form.slug ?? ''}
               onChange={e => setForm(prev => ({ ...prev, slug: e.target.value }))}
               placeholder="Ej: gasfiteria"
               style={inputStyle}
@@ -229,28 +226,20 @@ export default function AdminCategoriasPage() {
 
           <div style={{ display: 'flex', gap: '2rem', marginBottom: '1.2rem' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#444' }}>
-              <input
-                type="checkbox"
-                checked={form.activa}
+              <input type="checkbox" checked={form.activa ?? true}
                 onChange={e => setForm(prev => ({ ...prev, activa: e.target.checked }))}
-                style={{ accentColor: '#1dbf73', width: '16px', height: '16px' }}
-              />
+                style={{ accentColor: '#1dbf73', width: '16px', height: '16px' }} />
               Activa (visible en el sitio)
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px', color: '#444' }}>
-              <input
-                type="checkbox"
-                checked={form.requiere_cotizacion}
+              <input type="checkbox" checked={form.requiere_cotizacion ?? true}
                 onChange={e => setForm(prev => ({ ...prev, requiere_cotizacion: e.target.checked }))}
-                style={{ accentColor: '#1dbf73', width: '16px', height: '16px' }}
-              />
+                style={{ accentColor: '#1dbf73', width: '16px', height: '16px' }} />
               Requiere cotización
             </label>
           </div>
 
-          {error && (
-            <p style={{ fontSize: '13px', color: '#e53935', margin: '0 0 1rem' }}>{error}</p>
-          )}
+          {error && <p style={{ fontSize: '13px', color: '#e53935', margin: '0 0 1rem', background: '#fef2f2', padding: '8px 12px', borderRadius: '8px' }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: '8px' }}>
             <button onClick={cancelar}
@@ -265,11 +254,10 @@ export default function AdminCategoriasPage() {
         </div>
       )}
 
-      {/* Lista de categorías */}
       <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', overflow: 'hidden' }}>
         {categorias.length === 0 ? (
           <div style={{ padding: '2rem', textAlign: 'center' }}>
-            <p style={{ color: '#888', fontSize: '14px', margin: 0 }}>No hay categorías aún. Crea la primera.</p>
+            <p style={{ color: '#888', fontSize: '14px', margin: 0 }}>No hay categorías. Crea la primera.</p>
           </div>
         ) : (
           categorias.map((cat, i) => (
@@ -279,33 +267,29 @@ export default function AdminCategoriasPage() {
               borderBottom: i < categorias.length - 1 ? '1px solid #f0f0f0' : 'none',
               opacity: cat.activa ? 1 : 0.5
             }}>
-              <span style={{ fontSize: '24px', flexShrink: 0 }}>{cat.emoji}</span>
-
+              <span style={{ fontSize: '22px', flexShrink: 0, minWidth: '28px', textAlign: 'center' }}>
+                {cat.emoji || '🛠️'}
+              </span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                   <p style={{ fontSize: '15px', fontWeight: '700', color: '#222', margin: 0 }}>{cat.name}</p>
                   {!cat.activa && (
-                    <span style={{ fontSize: '11px', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '20px' }}>
-                      Inactiva
-                    </span>
+                    <span style={{ fontSize: '11px', background: '#fee2e2', color: '#991b1b', padding: '2px 8px', borderRadius: '20px' }}>Inactiva</span>
                   )}
                   {cat.requiere_cotizacion && (
-                    <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '20px' }}>
-                      Cotización
-                    </span>
+                    <span style={{ fontSize: '11px', background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: '20px' }}>Cotización</span>
                   )}
                 </div>
-                <p style={{ fontSize: '12px', color: '#aaa', margin: 0 }}>/categorias/{cat.slug}</p>
+                <p style={{ fontSize: '12px', color: '#aaa', margin: 0 }}>
+                  {cat.slug ? `/categorias/${cat.slug}` : 'Sin slug'}
+                </p>
               </div>
-
               <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                <button
-                  onClick={() => abrirEditar(cat)}
+                <button onClick={() => abrirEditar(cat)}
                   style={{ padding: '6px 14px', background: '#f5f5f5', color: '#444', border: '1px solid #e0e0e0', borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
                   Editar
                 </button>
-                <button
-                  onClick={() => toggleActiva(cat)}
+                <button onClick={() => toggleActiva(cat)}
                   style={{ padding: '6px 14px', background: '#fff', color: cat.activa ? '#e53935' : '#1dbf73', border: `1.5px solid ${cat.activa ? '#e53935' : '#1dbf73'}`, borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
                   {cat.activa ? 'Desactivar' : 'Activar'}
                 </button>
