@@ -60,6 +60,9 @@ export async function middleware(request: NextRequest) {
 
   const rutaPermitida = ROLE_ROUTES[rol]
 
+  // Admins pueden acceder a todas las rutas
+  if (profile?.is_admin) return response
+
   const intentandoRutaAjena = Object.values(ROLE_ROUTES)
     .filter(r => r !== rutaPermitida)
     .some(r => pathname.startsWith(r))
