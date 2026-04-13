@@ -67,11 +67,14 @@ export default function HomePage() {
     const texto = busqueda.trim().toLowerCase()
     setSinResultados(false)
     if (!texto) return
+    // Buscar en categorías primero
     const exacta = categorias.find(c => c.name.toLowerCase().startsWith(texto))
     if (exacta) { window.location.href = `/categorias/${exacta.slug}`; return }
     const parcial = categorias.find(c => c.name.toLowerCase().includes(texto))
     if (parcial) { window.location.href = `/categorias/${parcial.slug}`; return }
-    setSinResultados(true)
+    // Si no hay categoría, redirigir a cuenta/negocio para que el proveedor actualice su perfil
+    // o buscar directamente en la URL con el término
+    window.location.href = `/categorias?q=${encodeURIComponent(busqueda.trim())}`
   }
 
   const tieneContenido = [1,2,3].some(i => cms[`contenido_${i}_titulo`])

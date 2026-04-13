@@ -113,8 +113,6 @@ export default function Header() {
                 </a>
               ))}
             </div>
-            <div style={{ borderTop: '1px solid #f0f0f0', padding: '10px 16px' }}>
-              <a href="/categorias" style={{ fontSize: '13px', color: '#1dbf73', textDecoration: 'none', fontWeight: '500' }}>Ver todos los servicios →</a>
             </div>
           </div>
         )}
