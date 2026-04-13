@@ -108,7 +108,7 @@ export default function AdminCategoriasPage() {
     const payload = {
       name: form.name.trim(),
       slug: form.slug?.trim() ?? '',
-      emoji: form.emoji.trim() || '🛠️',
+      emoji: form.emoji?.trim() || '🛠️',
       activa: form.activa,
       requiere_cotizacion: form.requiere_cotizacion,
     }
