@@ -14,6 +14,7 @@ type Categoria = {
   name: string
   slug: string
   icon: string
+  emoji: string | null
 }
 
 export default function Header() {
@@ -34,7 +35,7 @@ export default function Header() {
     async function loadData() {
       const { data: cats } = await supabase
         .from('categories')
-        .select('id, name, slug, icon')
+        .select('id, name, slug, icon, emoji')
         .eq('activa', true)
         .order('name')
       setCategorias(cats ?? [])
@@ -71,12 +72,13 @@ export default function Header() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
   }
 
-  function getEmoji(icon: string) {
+  function getIcono(cat: Categoria) {
+    if (cat.emoji) return cat.emoji
     const map: Record<string, string> = {
       flower: '🌸', scissors: '✂️', trash: '🗑️',
       wrench: '🔧', droplets: '💧', zap: '⚡', hammer: '🔨'
     }
-    return map[icon] ?? '🛠️'
+    return map[cat.icon] ?? '🛠️'
   }
 
   return (
@@ -108,11 +110,10 @@ export default function Header() {
                   style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', textDecoration: 'none', color: '#222', fontSize: '14px' }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                  <span style={{ fontSize: '18px' }}>{getEmoji(cat.icon)}</span>
+                  <span style={{ fontSize: '18px' }}>{getIcono(cat)}</span>
                   <span>{cat.name}</span>
                 </a>
               ))}
-            </div>
             </div>
           </div>
         )}
