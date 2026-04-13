@@ -100,14 +100,14 @@ export default function AdminCategoriasPage() {
 
   async function guardar() {
     if (!form.name.trim()) { setError('El nombre es obligatorio.'); return }
-    if (!form.slug.trim()) { setError('El slug es obligatorio.'); return }
+    if (!form.slug?.trim()) { setError('El slug es obligatorio.'); return }
 
     setGuardando(true)
     setError('')
 
     const payload = {
       name: form.name.trim(),
-      slug: form.slug.trim(),
+      slug: form.slug?.trim() ?? '',
       emoji: form.emoji.trim() || '🛠️',
       activa: form.activa,
       requiere_cotizacion: form.requiere_cotizacion,
