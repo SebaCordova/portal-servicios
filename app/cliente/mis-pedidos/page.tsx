@@ -111,7 +111,7 @@ export default function MisPedidosPage() {
   }
 
   function setResena(bookingId: string, patch: Partial<ResenaState>) {
-    setResenas(prev => ({ ...prev, [bookingId]: { rating: null, comentario: '', ...prev[bookingId], ...patch } }))
+    setResenas(prev => ({ ...prev, [bookingId]: { ...{ rating: null, comentario: '' }, ...prev[bookingId], ...patch } }))
   }
 
   function formatFecha(f: string) { return new Date(f + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) }
