@@ -146,7 +146,7 @@ export default function MisPedidosPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {solicitudes.map(sol => {
               const es = estadoStyle(sol.estado)
-              const puedeEliminar = sol.estado === 'abierta' && sol.propuestas.length === 0
+              const puedeEliminar = !sol.propuestas.some(p => p.estado === 'aceptada') && sol.estado !== 'completada' && sol.estado !== 'cancelada'
               return (
                 <div key={sol.id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
                   <div style={{ padding: '1.5rem', borderBottom: '1px solid #f0f0f0' }}>
