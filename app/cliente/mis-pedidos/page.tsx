@@ -34,7 +34,7 @@ export default function MisPedidosPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { window.location.href = '/login'; return }
     const { data: profile } = await supabase.from('profiles').select('id').eq('auth_user_id', user.id).single()
-    if (!profile) return
+    if (!profile) { setLoading(false); return }
     const { data } = await supabase.from('solicitudes')
       .select(`id, estado, comuna, calle, numero, fecha_inicio, fecha_fin, descripcion, created_at, propuesta_aceptada_id,
         categories ( name ),
@@ -96,7 +96,7 @@ export default function MisPedidosPage() {
     const r = resenas[bookingId]
     if (!r?.rating) return
     const profile = await getProfile()
-    if (!profile) return
+    if (!profile) { setLoading(false); return }
     await supabase.from('reviews').insert({
       reviewer_id: profile.id, reviewee_id: proveedorProfileId,
       booking_id: bookingId, rating_calidad: r.rating, rating: r.rating, comment: r.comentario
