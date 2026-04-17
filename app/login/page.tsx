@@ -33,7 +33,7 @@ export default function LoginPage() {
     })
 
     if (error) {
-      setError('No pudimos enviar el link. Intenta nuevamente.')
+      setError(error.message)
     } else {
       setSent(true)
     }
