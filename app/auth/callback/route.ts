@@ -57,5 +57,6 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL('/cliente', request.url))
+  if (user?.user_metadata?.is_provider_applicant) return NextResponse.redirect(new URL("/cuenta", request.url))
+  return NextResponse.redirect(new URL("/cliente", request.url))
 }
