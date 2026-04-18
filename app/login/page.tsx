@@ -170,6 +170,10 @@ export default function LoginPage() {
               <button onClick={() => setSent(false)} style={{ background: 'none', border: 'none', color: '#1dbf73', fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
                 ← Usar otro email
               </button>
+<p style={{ textAlign: 'center', fontSize: '13px', color: '#aaa', margin: '1.5rem 0 0' }}>
+  ¿Quieres ofrecer servicios?{' '}
+  <a href="/registro-proveedor" style={{ color: '#1dbf73', textDecoration: 'none', fontWeight: '500' }}>Regístrate como proveedor →</a>
+</p>
             </div>
           )}
         </div>
