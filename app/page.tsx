@@ -190,7 +190,7 @@ export default function HomePage() {
           <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.85)', margin: '0 0 2rem', lineHeight: '1.5' }}>
             Únete a {cms['nombre_plataforma'] ?? 'ServiChile'} y conecta con clientes que necesitan tu expertise
           </p>
-          <a href="/login" style={{ display: 'inline-block', padding: '14px 32px', background: '#fff', color: '#1dbf73', borderRadius: '8px', textDecoration: 'none', fontSize: '16px', fontWeight: '700' }}>
+          <a href="/registro-proveedor" style={{ display: 'inline-block', padding: '14px 32px', background: '#fff', color: '#1dbf73', borderRadius: '8px', textDecoration: 'none', fontSize: '16px', fontWeight: '700' }}>
             Comenzar ahora →
           </a>
         </div>

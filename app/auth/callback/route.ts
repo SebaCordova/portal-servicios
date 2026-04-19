@@ -35,17 +35,36 @@ export async function GET(request: NextRequest) {
 
   const meta = user.user_metadata ?? {}
 
-  const { data: profile } = await supabase
+  // Garantizar que el perfil existe — si el trigger falló, lo creamos aquí
+  let { data: profile } = await supabase
     .from('profiles')
     .select('id, is_admin, is_provider')
     .eq('auth_user_id', user.id)
     .single()
 
+  if (!profile) {
+    const { data: newProfile } = await supabase
+      .from('profiles')
+      .insert({
+        auth_user_id: user.id,
+        full_name: meta.full_name ?? 'Sin nombre',
+        email: user.email,
+        comuna: meta.comuna ?? null,
+        is_client: true,
+        is_provider: false,
+      })
+      .select('id, is_admin, is_provider')
+      .single()
+    profile = newProfile
+  }
+
   if (profile?.is_admin)    return NextResponse.redirect(new URL('/admin', request.url))
   if (profile?.is_provider) return NextResponse.redirect(new URL('/proveedor', request.url))
 
+  // Proveedor aplicante — va a completar perfil
   if (meta.is_provider_applicant) return NextResponse.redirect(new URL('/cuenta', request.url))
 
+  // Proveedor pendiente — tiene provider_profile pero no verificado
   if (profile?.id) {
     const { data: pp } = await supabase
       .from('provider_profiles')
