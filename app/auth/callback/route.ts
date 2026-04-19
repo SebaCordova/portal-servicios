@@ -4,9 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const code = searchParams.get("code")
-  console.log("CALLBACK PARAMS:", Object.fromEntries(searchParams))
-  console.log("FULL URL:", request.url)
+  const code = searchParams.get('code')
   const token_hash = searchParams.get('token_hash')
   const type = searchParams.get('type')
 
@@ -33,30 +31,29 @@ export async function GET(request: NextRequest) {
   }
 
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.redirect(new URL('/login', request.url))
 
-  if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, is_admin, is_provider')
-      .eq('auth_user_id', user.id)
+  const meta = user.user_metadata ?? {}
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, is_admin, is_provider')
+    .eq('auth_user_id', user.id)
+    .single()
+
+  if (profile?.is_admin)    return NextResponse.redirect(new URL('/admin', request.url))
+  if (profile?.is_provider) return NextResponse.redirect(new URL('/proveedor', request.url))
+
+  if (meta.is_provider_applicant) return NextResponse.redirect(new URL('/cuenta', request.url))
+
+  if (profile?.id) {
+    const { data: pp } = await supabase
+      .from('provider_profiles')
+      .select('id, verified')
+      .eq('profile_id', profile.id)
       .single()
-
-    if (profile?.is_admin) return NextResponse.redirect(new URL('/admin', request.url))
-    if (profile?.is_provider) return NextResponse.redirect(new URL('/proveedor', request.url))
-
-    if (profile?.id) {
-      const { data: providerProfile } = await supabase
-        .from('provider_profiles')
-        .select('id, verified')
-        .eq('profile_id', profile.id)
-        .single()
-
-      if (providerProfile && !providerProfile.verified) {
-        return NextResponse.redirect(new URL('/proveedor/perfil', request.url))
-      }
-    }
+    if (pp && !pp.verified) return NextResponse.redirect(new URL('/cuenta', request.url))
   }
 
-  if (user?.user_metadata?.is_provider_applicant) return NextResponse.redirect(new URL("/cuenta", request.url))
-  return NextResponse.redirect(new URL("/cliente", request.url))
+  return NextResponse.redirect(new URL('/cliente', request.url))
 }
