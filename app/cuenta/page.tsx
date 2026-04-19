@@ -9,7 +9,7 @@ type Tab = 'personal' | 'negocio'
 type Estado = 'pendiente' | 'aprobado' | 'nuevo'
 
 export default function CuentaPage() {
-  const [tab, setTab]           = useState<Tab>('personal')
+  const [tab, setTab]           = useState<Tab>('negocio')
   const [loading, setLoading]   = useState(true)
   const [saving, setSaving]     = useState(false)
   const [saved, setSaved]       = useState(false)
@@ -108,7 +108,7 @@ export default function CuentaPage() {
     setSaving(false); setSaved(true); setTimeout(()=>setSaved(false),2000)
   }
 
-  const showNegocio = isApplicant || providerProfileId !== null
+  const showNegocio = true
   const inp: React.CSSProperties = { width:'100%', padding:'11px 14px', border:'1.5px solid #ddd', borderRadius:'8px', fontSize:'14px', color:'#222', outline:'none', boxSizing:'border-box', fontFamily:'inherit' }
   const lbl: React.CSSProperties = { display:'block', fontSize:'13px', fontWeight:'500', color:'#444', marginBottom:'6px' }
   const btnPrimary = (disabled=false): React.CSSProperties => ({ width:'100%', padding:'12px', background:saved?'#e8f9f1':disabled?'#a8e6c8':'#1dbf73', color:saved?'#065f46':'#fff', border:'none', borderRadius:'8px', fontSize:'15px', fontWeight:'600', cursor:disabled?'not-allowed':'pointer', fontFamily:'inherit' })
