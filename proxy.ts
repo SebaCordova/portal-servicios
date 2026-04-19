@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const PUBLIC_ROUTES = ['/', '/login', '/categorias', '/auth/callback', '/solicitar', '/registro-proveedor']
+const PUBLIC_ROUTES = ['/', '/login', '/categorias', '/auth/callback', '/solicitar', '/registro-proveedor', '/cuenta']
 
 function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))) return true
