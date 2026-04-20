@@ -37,7 +37,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     window.location.href = '/'
   }
 
-  const currentItem = MENU_ITEMS.find(i => i.pathname === pathname) ?? MENU_ITEMS.find(i => pathname.startsWith(i.href + '/')) ?? MENU_ITEMS.find(i => i.href === pathname)
 
   const Sidebar = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
