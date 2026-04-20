@@ -74,14 +74,16 @@ export default function AdminPage() {
   }
 
   async function aprobar(proveedor: Proveedor) {
-    setAccionando(proveedor.id)
-    await supabase.from('provider_profiles').update({ verified: true }).eq('id', proveedor.id)
-    await supabase.from('profiles').update({ is_provider: true }).eq('id', proveedor.profile_id)
-    await supabase.from('services').update({ active: true }).eq('provider_id', proveedor.id)
-    await enviarNotificacion('aprobacion', proveedor.profiles.email, proveedor.profiles.full_name)
-    await cargarProveedores()
-    setAccionando(null)
-  }
+  setAccionando(proveedor.id)
+  await fetch('/api/admin/aprobar-proveedor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ providerProfileId: proveedor.id, profileId: proveedor.profile_id })
+  })
+  await enviarNotificacion('aprobacion', proveedor.profiles.email, proveedor.profiles.full_name)
+  await cargarProveedores()
+  setAccionando(null)
+}
 
   async function rechazar(proveedor: Proveedor) {
     setAccionando(proveedor.id)
