@@ -24,26 +24,59 @@ export async function POST(request: NextRequest) {
       }
     )
 
+    // 🔒 VERIFICACIÓN DE AUTORIZACIÓN
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+    }
+
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('id, is_provider')
+      .eq('auth_user_id', user.id)
+      .single()
+
+    if (!userProfile?.is_provider) {
+      return NextResponse.json({ error: 'No eres proveedor' }, { status: 403 })
+    }
+
+    const { data: providerProfile } = await supabase
+      .from('provider_profiles')
+      .select('id')
+      .eq('profile_id', userProfile.id)
+      .single()
+
+    if (!providerProfile) {
+      return NextResponse.json({ error: 'Perfil de proveedor no encontrado' }, { status: 403 })
+    }
+
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('id, propuesta_id, propuestas!propuesta_id(proveedor_id)')
+      .eq('id', bookingId)
+      .single()
+
+    if (!booking) {
+      return NextResponse.json({ error: 'Booking no encontrado' }, { status: 404 })
+    }
+
+    const propuesta = (booking.propuestas as any)
+    if (propuesta?.proveedor_id !== providerProfile.id) {
+      return NextResponse.json({ error: 'No tienes permiso para completar este booking' }, { status: 403 })
+    }
+
     await supabase
       .from('bookings')
       .update({ status: 'completado' })
       .eq('id', bookingId)
 
-    const { data: booking } = await supabase
+    const { data: completedBooking } = await supabase
       .from('bookings')
-      .select(`
-        id, total_clp, scheduled_at,
-        propuestas!propuesta_id (
-          solicitudes!solicitud_id (
-            categories ( name ),
-            profiles!cliente_id ( full_name, auth_user_id )
-          )
-        )
-      `)
+      .select('id, total_clp, scheduled_at, propuestas!propuesta_id(solicitudes!solicitud_id(categories(name), profiles!cliente_id(full_name, auth_user_id)))')
       .eq('id', bookingId)
       .single()
 
-    const solicitud = (booking?.propuestas as any)?.solicitudes
+    const solicitud = (completedBooking?.propuestas as any)?.solicitudes
     const clienteProfile = solicitud?.profiles
     const categoria = solicitud?.categories?.name ?? 'Servicio'
 
@@ -81,6 +114,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('Error completando booking:', error)
-    return NextResponse.json({ error: 'Error' }, { status: 500 })
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
   }
 }
