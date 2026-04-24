@@ -43,9 +43,42 @@ export default function ProveedorPage() {
     setProviderName(profile.full_name?.split(' ')[0] ?? 'Proveedor')
     const { data: pp } = await supabase.from('provider_profiles').select('id, rating_avg, total_reviews').eq('profile_id', profile.id).single()
     if (!pp) { setLoading(false); return }
-    setIndicadores(prev => ({ ...prev, rating: pp.rating_avg ?? 0, totalReviews: pp.total_reviews ?? 0 }))
+    
     const { data: mpa } = await supabase.from('propuestas').select('id').eq('proveedor_id', pp.id).eq('estado', 'aceptada')
     const propuestaIds = mpa?.map(p => p.id) ?? []
+    
+    const now = new Date()
+    const mesActual = now.getMonth() + 1
+    const anoActual = now.getFullYear()
+
+    const { data: bookingsCompletados } = propuestaIds.length > 0
+      ? await supabase
+          .from('bookings')
+          .select('id, total_clp, scheduled_at, propuesta_id')
+          .eq('status', 'completado')
+          .in('propuesta_id', propuestaIds)
+      : { data: [] }
+
+    const trabajosRealizados = bookingsCompletados?.length ?? 0
+    
+    let gananciasMes = 0
+    if (bookingsCompletados && bookingsCompletados.length > 0) {
+      gananciasMes = bookingsCompletados
+        .filter((b: any) => {
+          const fecha = new Date(b.scheduled_at)
+          return fecha.getMonth() + 1 === mesActual && fecha.getFullYear() === anoActual
+        })
+        .reduce((sum: number, b: any) => sum + (b.total_clp ?? 0), 0)
+    }
+
+    setIndicadores(prev => ({ 
+      ...prev, 
+      rating: pp.rating_avg ?? 0, 
+      totalReviews: pp.total_reviews ?? 0,
+      trabajosRealizados,
+      gananciasMes
+    }))
+
     const { data: bookingsData } = propuestaIds.length > 0
       ? await supabase.from('bookings').select('id, scheduled_at, address, comuna, total_clp, status, propuesta_id').in('status', ['confirmado', 'en_proceso']).in('propuesta_id', propuestaIds).order('scheduled_at', { ascending: true })
       : { data: [] }
@@ -90,7 +123,6 @@ export default function ProveedorPage() {
           <p style={{ fontSize: '14px', color: '#888', margin: 0 }}>Aquí está el resumen de tu actividad</p>
         </div>
 
-        {/* Trabajos pendientes */}
         <div style={{ marginBottom: '2rem' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>
             Trabajos pendientes de realizar
@@ -125,7 +157,6 @@ export default function ProveedorPage() {
           )}
         </div>
 
-        {/* Solicitudes pendientes */}
         <div style={{ marginBottom: '2rem' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>
             Solicitudes pendientes
@@ -188,7 +219,6 @@ export default function ProveedorPage() {
           )}
         </div>
 
-        {/* Indicadores */}
         <div>
           <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>Indicadores</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
