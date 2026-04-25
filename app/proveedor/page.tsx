@@ -14,14 +14,6 @@ type Trabajo = {
 }
 type Indicadores = { trabajosRealizados: number; gananciasMes: number; rating: number; totalReviews: number }
 
-const IGNORADAS_KEY = 'proveedor_solicitudes_ignoradas'
-function cargarIgnoradas(): Set<string> {
-  try { const r = localStorage.getItem(IGNORADAS_KEY); return r ? new Set(JSON.parse(r)) : new Set() } catch { return new Set() }
-}
-function guardarIgnoradas(s: Set<string>) {
-  try { localStorage.setItem(IGNORADAS_KEY, JSON.stringify([...s])) } catch {}
-}
-
 export default function ProveedorPage() {
   const [loading, setLoading] = useState(true)
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([])
@@ -29,12 +21,10 @@ export default function ProveedorPage() {
   const [indicadores, setIndicadores] = useState<Indicadores>({ trabajosRealizados: 0, gananciasMes: 0, rating: 0, totalReviews: 0 })
   const [providerName, setProviderName] = useState('')
   const [expandida, setExpandida] = useState<string | null>(null)
-  const [ignoradas, setIgnoradas] = useState<Set<string>>(new Set())
   const [accionando, setAccionando] = useState<string | null>(null)
+  const [proveedorId, setProveedorId] = useState<string | null>(null)
 
   const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-
-  useEffect(() => { setIgnoradas(cargarIgnoradas()) }, [])
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -44,38 +34,60 @@ export default function ProveedorPage() {
     setProviderName(profile.full_name?.split(' ')[0] ?? 'Proveedor')
     const { data: pp } = await supabase.from('provider_profiles').select('id, rating_avg, total_reviews').eq('profile_id', profile.id).single()
     if (!pp) { setLoading(false); return }
+    setProveedorId(pp.id)
+
     const { data: mpa } = await supabase.from('propuestas').select('id').eq('proveedor_id', pp.id).eq('estado', 'aceptada')
     const propuestaIds = mpa?.map(p => p.id) ?? []
     const now = new Date()
     const mesActual = now.getMonth() + 1
     const anoActual = now.getFullYear()
-    const { data: bookingsCompletados } = propuestaIds.length > 0 ? await supabase.from('bookings').select('id, total_clp, scheduled_at, propuesta_id').eq('status', 'completado').in('propuesta_id', propuestaIds) : { data: [] }
+
+    const { data: bookingsCompletados } = propuestaIds.length > 0
+      ? await supabase.from('bookings').select('id, total_clp, scheduled_at, propuesta_id').eq('status', 'completado').in('propuesta_id', propuestaIds)
+      : { data: [] }
+
     const trabajosRealizados = bookingsCompletados?.length ?? 0
     let gananciasMes = 0
     if (bookingsCompletados && bookingsCompletados.length > 0) {
-      gananciasMes = bookingsCompletados.filter((b: any) => { const fecha = new Date(b.scheduled_at); return fecha.getMonth() + 1 === mesActual && fecha.getFullYear() === anoActual }).reduce((sum: number, b: any) => sum + (b.total_clp ?? 0), 0)
+      gananciasMes = bookingsCompletados
+        .filter((b: any) => { const f = new Date(b.scheduled_at); return f.getMonth() + 1 === mesActual && f.getFullYear() === anoActual })
+        .reduce((sum: number, b: any) => sum + (b.total_clp ?? 0), 0)
     }
     setIndicadores(prev => ({ ...prev, rating: pp.rating_avg ?? 0, totalReviews: pp.total_reviews ?? 0, trabajosRealizados, gananciasMes }))
-    const { data: bookingsData } = propuestaIds.length > 0 ? await supabase.from('bookings').select('id, scheduled_at, address, comuna, total_clp, status, propuesta_id').in('status', ['confirmado', 'en_proceso']).in('propuesta_id', propuestaIds).order('scheduled_at', { ascending: true }) : { data: [] }
+
+    const { data: bookingsData } = propuestaIds.length > 0
+      ? await supabase.from('bookings').select('id, scheduled_at, address, comuna, total_clp, status, propuesta_id').in('status', ['confirmado', 'en_proceso']).in('propuesta_id', propuestaIds).order('scheduled_at', { ascending: true })
+      : { data: [] }
     setTrabajos(bookingsData ?? [])
+
     const { data: zones } = await supabase.from('provider_zones').select('comuna').eq('provider_id', pp.id)
     const { data: services } = await supabase.from('services').select('category_id').eq('provider_id', pp.id).eq('active', true)
     const comunas = zones?.map(z => z.comuna) ?? []
     const categoryIds = services?.map(s => s.category_id) ?? []
     if (comunas.length > 0 && categoryIds.length > 0) {
-      const { data: sd } = await supabase.from('solicitudes').select('id, descripcion, comuna, calle, numero, fecha_inicio, fecha_fin, created_at, categories ( name )').eq('estado', 'abierta').in('comuna', comunas).in('category_id', categoryIds).order('created_at', { ascending: false })
-      const { data: mp } = await supabase.from('propuestas').select('solicitud_id').eq('proveedor_id', pp.id)
-      const conPropuesta = new Set(mp?.map(p => p.solicitud_id) ?? [])
-      setSolicitudes(((sd ?? []).filter(s => !conPropuesta.has(s.id))) as unknown as Solicitud[])
+      const { data: sd } = await supabase.from('solicitudes')
+        .select('id, descripcion, comuna, calle, numero, fecha_inicio, fecha_fin, created_at, categories ( name )')
+        .eq('estado', 'abierta').in('comuna', comunas).in('category_id', categoryIds).order('created_at', { ascending: false })
+      const { data: mp } = await supabase.from('propuestas').select('solicitud_id, descartada_por_proveedor').eq('proveedor_id', pp.id)
+      const conPropuesta = new Set(mp?.filter(p => !p.descartada_por_proveedor).map(p => p.solicitud_id) ?? [])
+      const descartadas = new Set(mp?.filter(p => p.descartada_por_proveedor).map(p => p.solicitud_id) ?? [])
+      setSolicitudes(((sd ?? []).filter(s => !conPropuesta.has(s.id) && !descartadas.has(s.id))) as unknown as Solicitud[])
     }
     setLoading(false)
   }, [])
 
   useEffect(() => { loadData() }, [loadData])
 
-  function ignorar(id: string) {
-    setIgnoradas(prev => { const n = new Set([...prev, id]); guardarIgnoradas(n); return n })
-    if (expandida === id) setExpandida(null)
+  async function ignorar(solicitudId: string) {
+    if (!proveedorId) return
+    const { data: existente } = await supabase.from('propuestas').select('id').eq('proveedor_id', proveedorId).eq('solicitud_id', solicitudId).single()
+    if (existente) {
+      await supabase.from('propuestas').update({ descartada_por_proveedor: true }).eq('id', existente.id)
+    } else {
+      await supabase.from('propuestas').insert({ proveedor_id: proveedorId, solicitud_id: solicitudId, descartada_por_proveedor: true, estado: 'descartada' })
+    }
+    setSolicitudes(prev => prev.filter(s => s.id !== solicitudId))
+    if (expandida === solicitudId) setExpandida(null)
   }
 
   async function marcarEnProceso(bookingId: string) {
@@ -96,8 +108,6 @@ export default function ProveedorPage() {
 
   function formatFecha(f: string) { return new Date(f + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long' }) }
   function formatFechaHora(f: string) { return new Date(f).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
-
-  const solicitudesVisibles = solicitudes.filter(s => !ignoradas.has(s.id))
 
   if (loading) return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
@@ -156,9 +166,9 @@ export default function ProveedorPage() {
         <div style={{ marginBottom: '2rem' }}>
           <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>
             Solicitudes pendientes
-            {solicitudesVisibles.length > 0 && <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '12px', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>{solicitudesVisibles.length}</span>}
+            {solicitudes.length > 0 && <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '12px', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>{solicitudes.length}</span>}
           </h2>
-          {solicitudesVisibles.length === 0 ? (
+          {solicitudes.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '2.5rem', textAlign: 'center' }}>
               <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>📋</div>
               <p style={{ fontSize: '15px', fontWeight: '600', color: '#222', margin: '0 0 4px' }}>No hay solicitudes por ahora</p>
@@ -166,17 +176,17 @@ export default function ProveedorPage() {
             </div>
           ) : (
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', overflow: 'hidden' }}>
-              {solicitudesVisibles.map((s, i) => {
+              {solicitudes.map((s, i) => {
                 const abierta = expandida === s.id
                 return (
-                  <div key={s.id} style={{ borderBottom: i < solicitudesVisibles.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
+                  <div key={s.id} style={{ borderBottom: i < solicitudes.length - 1 ? '1px solid #f0f0f0' : 'none' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '1rem 1.5rem' }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{ fontSize: '14px', fontWeight: '600', color: '#222', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(s.categories as any)?.name} · {s.comuna}</p>
                         <p style={{ fontSize: '12px', color: '#aaa', margin: 0 }}>📅 {formatFecha(s.fecha_inicio)} → {formatFecha(s.fecha_fin)}</p>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                        <button onClick={() => ignorar(s.id)} title="Eliminar de la lista" style={{ width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#bbb', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
+                        <button onClick={() => ignorar(s.id)} title="Descartar solicitud" style={{ width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#bbb', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
                         <button onClick={() => setExpandida(abierta ? null : s.id)} style={{ padding: '6px 12px', background: abierta ? '#f0fdf7' : '#f5f5f5', color: abierta ? '#1dbf73' : '#444', border: `1px solid ${abierta ? '#1dbf73' : '#e0e0e0'}`, borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>{abierta ? 'Cerrar' : 'Ver detalle'}</button>
                       </div>
                     </div>
@@ -189,7 +199,7 @@ export default function ProveedorPage() {
                           <p style={{ fontSize: '13px', color: '#555', margin: 0, lineHeight: '1.5', whiteSpace: 'pre-line' }}>{s.descripcion}</p>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                          <button onClick={() => ignorar(s.id)} style={{ flex: 1, padding: '10px', background: '#fff', color: '#888', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>Eliminar de la lista</button>
+                          <button onClick={() => ignorar(s.id)} style={{ flex: 1, padding: '10px', background: '#fff', color: '#888', border: '1.5px solid #e0e0e0', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>Descartar</button>
                           <a href={`/proveedor/propuesta/${s.id}`} style={{ flex: 2, display: 'block', padding: '10px', background: '#1dbf73', color: '#fff', borderRadius: '8px', fontSize: '14px', fontWeight: '600', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>Enviar propuesta →</a>
                         </div>
                       </div>
