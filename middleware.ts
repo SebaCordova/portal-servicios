@@ -16,7 +16,7 @@ const ROLE_ROUTES: Record<string, string> = {
   cliente:   '/cliente',
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   if (isPublicRoute(pathname)) return NextResponse.next()
 

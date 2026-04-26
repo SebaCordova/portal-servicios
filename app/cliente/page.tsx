@@ -1,16 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 export default function ClientePage() {
   const [nombre, setNombre] = useState('')
   const [loading, setLoading] = useState(true)
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = getSupabaseBrowserClient()
 
   useEffect(() => {
     async function load() {

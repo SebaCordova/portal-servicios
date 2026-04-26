@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 type Propuesta = {
   id: string; precio_clp: number; descripcion: string; fecha_hora_estimada: string
@@ -28,7 +28,7 @@ export default function MisPedidosPage() {
   const [razon, setRazon] = useState('')
   const [resenas, setResenas] = useState<Record<string, ResenaState>>({})
 
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const supabase = getSupabaseBrowserClient()
 
   const cargar = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -96,16 +96,23 @@ export default function MisPedidosPage() {
     const r = resenas[bookingId]
     if (!r?.rating) return
     const profile = await getProfile()
-    if (!profile) { setLoading(false); return }
-    await supabase.from('reviews').insert({
-      reviewer_id: profile.id, reviewee_id: proveedorProfileId,
-      booking_id: bookingId, rating_calidad: r.rating, rating: r.rating, comment: r.comentario
+    if (!profile) return
+
+    const { error } = await supabase.from('reviews').insert({
+      reviewer_id: profile.id,
+      reviewee_id: proveedorProfileId,
+      booking_id: bookingId,
+      rating_calidad: r.rating,
+      rating: r.rating,
+      comment: r.comentario
     })
-    const { data: reviews } = await supabase.from('reviews').select('rating_calidad').eq('reviewee_id', proveedorProfileId)
-    if (reviews?.length) {
-      const avg = reviews.reduce((s, x) => s + x.rating_calidad, 0) / reviews.length
-      await supabase.from('provider_profiles').update({ rating_avg: Math.round(avg * 10) / 10, total_reviews: reviews.length }).eq('id', proveedorProfileId)
+
+    if (error) {
+      console.error('[enviarResena] Error:', error.message)
+      return
     }
+
+    // El trigger trg_recalcular_rating actualiza rating_avg automáticamente en DB
     setResenas(prev => { const n = { ...prev }; delete n[bookingId]; return n })
     await cargar()
   }
