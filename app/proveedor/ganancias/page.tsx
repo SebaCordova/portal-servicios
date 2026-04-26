@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 type Trabajo = {
   id: string
@@ -20,7 +20,7 @@ export default function GananciasPage() {
   const [loading, setLoading] = useState(true)
   const [mesFiltro, setMesFiltro] = useState('')
 
-  const sb = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const sb = getSupabaseBrowserClient()
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await sb.auth.getUser()
