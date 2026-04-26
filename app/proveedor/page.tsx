@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 type Solicitud = {
   id: string; descripcion: string; comuna: string; calle: string; numero: string
@@ -24,7 +24,7 @@ export default function ProveedorPage() {
   const [accionando, setAccionando] = useState<string | null>(null)
   const [proveedorId, setProveedorId] = useState<string | null>(null)
 
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const supabase = getSupabaseBrowserClient()
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
@@ -35,43 +35,30 @@ export default function ProveedorPage() {
     const { data: pp } = await supabase.from('provider_profiles').select('id, rating_avg, total_reviews').eq('profile_id', profile.id).single()
     if (!pp) { setLoading(false); return }
     setProveedorId(pp.id)
-
     const { data: mpa } = await supabase.from('propuestas').select('id').eq('proveedor_id', pp.id).eq('estado', 'aceptada')
-    const propuestaIds = mpa?.map(p => p.id) ?? []
+    const propuestaIds = mpa?.map((p: any) => p.id) ?? []
     const now = new Date()
     const mesActual = now.getMonth() + 1
     const anoActual = now.getFullYear()
-
-    const { data: bookingsCompletados } = propuestaIds.length > 0
-      ? await supabase.from('bookings').select('id, total_clp, scheduled_at, propuesta_id').eq('status', 'completado').in('propuesta_id', propuestaIds)
-      : { data: [] }
-
+    const { data: bookingsCompletados } = propuestaIds.length > 0 ? await supabase.from('bookings').select('id, total_clp, scheduled_at, propuesta_id').eq('status', 'completado').in('propuesta_id', propuestaIds) : { data: [] }
     const trabajosRealizados = bookingsCompletados?.length ?? 0
     let gananciasMes = 0
     if (bookingsCompletados && bookingsCompletados.length > 0) {
-      gananciasMes = bookingsCompletados
-        .filter((b: any) => { const f = new Date(b.scheduled_at); return f.getMonth() + 1 === mesActual && f.getFullYear() === anoActual })
-        .reduce((sum: number, b: any) => sum + (b.total_clp ?? 0), 0)
+      gananciasMes = bookingsCompletados.filter((b: any) => { const f = new Date(b.scheduled_at); return f.getMonth() + 1 === mesActual && f.getFullYear() === anoActual }).reduce((sum: number, b: any) => sum + (b.total_clp ?? 0), 0)
     }
     setIndicadores(prev => ({ ...prev, rating: pp.rating_avg ?? 0, totalReviews: pp.total_reviews ?? 0, trabajosRealizados, gananciasMes }))
-
-    const { data: bookingsData } = propuestaIds.length > 0
-      ? await supabase.from('bookings').select('id, scheduled_at, address, comuna, total_clp, status, propuesta_id').in('status', ['confirmado', 'en_proceso']).in('propuesta_id', propuestaIds).order('scheduled_at', { ascending: true })
-      : { data: [] }
+    const { data: bookingsData } = propuestaIds.length > 0 ? await supabase.from('bookings').select('id, scheduled_at, address, comuna, total_clp, status, propuesta_id').in('status', ['confirmado', 'en_proceso']).in('propuesta_id', propuestaIds).order('scheduled_at', { ascending: true }) : { data: [] }
     setTrabajos(bookingsData ?? [])
-
     const { data: zones } = await supabase.from('provider_zones').select('comuna').eq('provider_id', pp.id)
     const { data: services } = await supabase.from('services').select('category_id').eq('provider_id', pp.id).eq('active', true)
-    const comunas = zones?.map(z => z.comuna) ?? []
-    const categoryIds = services?.map(s => s.category_id) ?? []
+    const comunas = zones?.map((z: any) => z.comuna) ?? []
+    const categoryIds = services?.map((s: any) => s.category_id) ?? []
     if (comunas.length > 0 && categoryIds.length > 0) {
-      const { data: sd } = await supabase.from('solicitudes')
-        .select('id, descripcion, comuna, calle, numero, fecha_inicio, fecha_fin, created_at, categories ( name )')
-        .eq('estado', 'abierta').in('comuna', comunas).in('category_id', categoryIds).order('created_at', { ascending: false })
+      const { data: sd } = await supabase.from('solicitudes').select('id, descripcion, comuna, calle, numero, fecha_inicio, fecha_fin, created_at, categories ( name )').eq('estado', 'abierta').in('comuna', comunas).in('category_id', categoryIds).order('created_at', { ascending: false })
       const { data: mp } = await supabase.from('propuestas').select('solicitud_id, descartada_por_proveedor').eq('proveedor_id', pp.id)
-      const conPropuesta = new Set(mp?.filter(p => !p.descartada_por_proveedor).map(p => p.solicitud_id) ?? [])
-      const descartadas = new Set(mp?.filter(p => p.descartada_por_proveedor).map(p => p.solicitud_id) ?? [])
-      setSolicitudes(((sd ?? []).filter(s => !conPropuesta.has(s.id) && !descartadas.has(s.id))) as unknown as Solicitud[])
+      const conPropuesta = new Set(mp?.filter((p: any) => !p.descartada_por_proveedor).map((p: any) => p.solicitud_id) ?? [])
+      const descartadas = new Set(mp?.filter((p: any) => p.descartada_por_proveedor).map((p: any) => p.solicitud_id) ?? [])
+      setSolicitudes(((sd ?? []).filter((s: any) => !conPropuesta.has(s.id) && !descartadas.has(s.id))) as unknown as Solicitud[])
     }
     setLoading(false)
   }, [])
@@ -81,39 +68,26 @@ export default function ProveedorPage() {
   async function ignorar(solicitudId: string) {
     if (!proveedorId) return
     const { data: existente } = await supabase.from('propuestas').select('id').eq('proveedor_id', proveedorId).eq('solicitud_id', solicitudId).single()
-    if (existente) {
-      await supabase.from('propuestas').update({ descartada_por_proveedor: true }).eq('id', existente.id)
-    } else {
-      await supabase.from('propuestas').insert({ proveedor_id: proveedorId, solicitud_id: solicitudId, descartada_por_proveedor: true, estado: 'descartada' })
-    }
+    if (existente) { await supabase.from('propuestas').update({ descartada_por_proveedor: true }).eq('id', existente.id) }
+    else { await supabase.from('propuestas').insert({ proveedor_id: proveedorId, solicitud_id: solicitudId, descartada_por_proveedor: true, estado: 'descartada' }) }
     setSolicitudes(prev => prev.filter(s => s.id !== solicitudId))
     if (expandida === solicitudId) setExpandida(null)
   }
 
   async function marcarEnProceso(bookingId: string) {
     setAccionando(bookingId)
-    try {
-      const res = await fetch('/api/bookings/en-proceso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId }) })
-      if (res.ok) { await loadData() }
-    } catch (error) { console.error('Error:', error) } finally { setAccionando(null) }
+    try { const res = await fetch('/api/bookings/en-proceso', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId }) }); if (res.ok) { await loadData() } } catch (error) { console.error('Error:', error) } finally { setAccionando(null) }
   }
 
   async function marcarCompletado(bookingId: string) {
     setAccionando(bookingId)
-    try {
-      const res = await fetch('/api/bookings/completar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId }) })
-      if (res.ok) { await loadData() }
-    } catch (error) { console.error('Error:', error) } finally { setAccionando(null) }
+    try { const res = await fetch('/api/bookings/completar', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bookingId }) }); if (res.ok) { await loadData() } } catch (error) { console.error('Error:', error) } finally { setAccionando(null) }
   }
 
   function formatFecha(f: string) { return new Date(f + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long' }) }
   function formatFechaHora(f: string) { return new Date(f).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) }
 
-  if (loading) return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
-      <p style={{ color: '#888' }}>Cargando...</p>
-    </main>
-  )
+  if (loading) return (<main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}><p style={{ color: '#888' }}>Cargando...</p></main>)
 
   return (
     <main style={{ minHeight: '100vh', background: '#f5f5f5', fontFamily: "'Helvetica Neue', Arial, sans-serif" }}>
@@ -122,12 +96,8 @@ export default function ProveedorPage() {
           <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#222', margin: '0 0 4px' }}>Hola, {providerName} 👋</h1>
           <p style={{ fontSize: '14px', color: '#888', margin: 0 }}>Aquí está el resumen de tu actividad</p>
         </div>
-
         <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>
-            Trabajos pendientes de realizar
-            {trabajos.length > 0 && <span style={{ background: '#dbeafe', color: '#1e40af', fontSize: '12px', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>{trabajos.length}</span>}
-          </h2>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>Trabajos pendientes de realizar{trabajos.length > 0 && <span style={{ background: '#dbeafe', color: '#1e40af', fontSize: '12px', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>{trabajos.length}</span>}</h2>
           {trabajos.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '2.5rem', textAlign: 'center' }}>
               <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>🔧</div>
@@ -148,26 +118,16 @@ export default function ProveedorPage() {
                     <span style={{ fontSize: '12px', background: t.status === 'confirmado' ? '#dbeafe' : '#fef3c7', color: t.status === 'confirmado' ? '#1e40af' : '#92400e', padding: '4px 10px', borderRadius: '20px' }}>{t.status === 'confirmado' ? 'Confirmado' : 'En proceso'}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                    {t.status === 'confirmado' && (
-                      <button onClick={() => marcarEnProceso(t.id)} disabled={accionando === t.id} style={{ flex: 1, padding: '9px', background: '#fff', color: '#f59e0b', border: '1.5px solid #f59e0b', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
-                        {accionando === t.id ? 'Procesando...' : 'Iniciar trabajo'}
-                      </button>
-                    )}
-                    <button onClick={() => marcarCompletado(t.id)} disabled={accionando === t.id} style={{ flex: 1, padding: '9px', background: '#1dbf73', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
-                      {accionando === t.id ? 'Procesando...' : 'Marcar completado'}
-                    </button>
+                    {t.status === 'confirmado' && <button onClick={() => marcarEnProceso(t.id)} disabled={accionando === t.id} style={{ flex: 1, padding: '9px', background: '#fff', color: '#f59e0b', border: '1.5px solid #f59e0b', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>{accionando === t.id ? 'Procesando...' : 'Iniciar trabajo'}</button>}
+                    <button onClick={() => marcarCompletado(t.id)} disabled={accionando === t.id} style={{ flex: 1, padding: '9px', background: '#1dbf73', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>{accionando === t.id ? 'Procesando...' : 'Marcar completado'}</button>
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
-
         <div style={{ marginBottom: '2rem' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>
-            Solicitudes pendientes
-            {solicitudes.length > 0 && <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '12px', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>{solicitudes.length}</span>}
-          </h2>
+          <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>Solicitudes pendientes{solicitudes.length > 0 && <span style={{ background: '#fef3c7', color: '#92400e', fontSize: '12px', padding: '2px 8px', borderRadius: '20px', marginLeft: '8px' }}>{solicitudes.length}</span>}</h2>
           {solicitudes.length === 0 ? (
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e0e0e0', padding: '2.5rem', textAlign: 'center' }}>
               <div style={{ fontSize: '36px', marginBottom: '0.8rem' }}>📋</div>
@@ -186,7 +146,7 @@ export default function ProveedorPage() {
                         <p style={{ fontSize: '12px', color: '#aaa', margin: 0 }}>📅 {formatFecha(s.fecha_inicio)} → {formatFecha(s.fecha_fin)}</p>
                       </div>
                       <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                        <button onClick={() => ignorar(s.id)} title="Descartar solicitud" style={{ width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#bbb', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
+                        <button onClick={() => ignorar(s.id)} style={{ width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', color: '#bbb', border: '1px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', fontFamily: 'inherit' }}>✕</button>
                         <button onClick={() => setExpandida(abierta ? null : s.id)} style={{ padding: '6px 12px', background: abierta ? '#f0fdf7' : '#f5f5f5', color: abierta ? '#1dbf73' : '#444', border: `1px solid ${abierta ? '#1dbf73' : '#e0e0e0'}`, borderRadius: '8px', fontSize: '12px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>{abierta ? 'Cerrar' : 'Ver detalle'}</button>
                       </div>
                     </div>
@@ -210,7 +170,6 @@ export default function ProveedorPage() {
             </div>
           )}
         </div>
-
         <div>
           <h2 style={{ fontSize: '16px', fontWeight: '700', color: '#222', margin: '0 0 1rem' }}>Indicadores</h2>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
