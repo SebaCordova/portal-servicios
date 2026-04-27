@@ -1,80 +1,121 @@
-# Contexto del proyecto: Portal de Servicios Presenciales Chile
+# Contexto del proyecto: ServiChile — Portal de Servicios Presenciales Chile
+
+**Última actualización:** Abril 2026
 
 ## Qué estamos construyendo
-Una plataforma tipo Fiverr pero para servicios que requieren presencia física en Chile.
-Foco inicial en servicios del hogar y jardín: gasfitería, electricidad, jardinería, podas,
-retiro de ramas y mantención de jardines.
+Marketplace de servicios del hogar para Chile (gasfitería, electricidad, jardinería, etc.).
+Modelo: cliente publica solicitud → proveedores envían propuestas → cliente acepta → pago vía Flow.cl → trabajo → reseña.
 
 ## Stack tecnológico
-- **Frontend**: Next.js 16 con App Router, TypeScript, Tailwind CSS
-- **Base de datos**: Supabase (PostgreSQL)
-- **Auth**: Supabase Auth con OTP por email (sin contraseñas)
-- **Deploy**: Vercel
-- **Pagos**: Flow.cl (pasarela de pagos chilena)
+- **Frontend**: Next.js 16, React 19, TypeScript (strict), Tailwind CSS
+- **Base de datos**: Supabase (PostgreSQL) con RLS
+- **Auth**: Supabase Auth — OTP por email (sin contraseñas)
+- **Email transaccional**: Resend
+- **Deploy**: Vercel (rama `main` → producción automática)
+- **Pagos**: Flow.cl — integración pendiente (mock activo)
 
 ## Estructura del proyecto
 ```
 portal-servicios/
-├── proxy.ts                    ← protección de rutas por rol (antes middleware.ts)
+├── proxy.ts                         ← middleware de protección de rutas por rol
 ├── app/
-│   ├── page.tsx                ← landing pública
-│   ├── (auth)/
-│   │   └── login/page.tsx      ← login + registro en una sola página
-│   ├── admin/
-│   │   └── layout.tsx          ← portal administrador
-│   ├── proveedor/
-│   │   └── layout.tsx          ← portal proveedor
-│   └── cliente/
-│       └── layout.tsx          ← portal cliente
+│   ├── page.tsx                     ← landing pública
+│   ├── login/                       ← login + registro OTP
+│   ├── registro-proveedor/          ← onboarding proveedor
+│   ├── admin/                       ← portal administrador
+│   │   ├── proveedores/             ← listado y aprobación de proveedores
+│   │   ├── bookings/                ← gestión de reservas
+│   │   ├── pagos/                   ← gestión de pagos
+│   │   ├── metricas/                ← dashboard métricas
+│   │   └── ...otros módulos admin
+│   ├── proveedor/                   ← portal proveedor
+│   │   ├── page.tsx                 ← dashboard con indicadores reales
+│   │   ├── agenda/                  ← trabajos confirmados y en proceso
+│   │   ├── ganancias/               ← historial de ingresos por mes
+│   │   ├── servicios/               ← gestión de servicios ofrecidos
+│   │   └── perfil/                  ← perfil público del proveedor
+│   ├── cliente/                     ← portal cliente
+│   │   ├── buscar/                  ← búsqueda de proveedores
+│   │   ├── mis-pedidos/             ← historial de solicitudes y reseñas
+│   │   └── perfil/
+│   └── api/
+│       ├── bookings/
+│       │   ├── completar/route.ts   ← ✅ con autorización de 3 capas
+│       │   └── en-proceso/route.ts  ← ✅ mismo patrón de autorización
+│       ├── admin/
+│       │   └── aprobar-proveedor/   ← ✅ usa createSupabaseServer()
+│       └── webhooks/
+│           └── pagos/               ← 🔴 VACÍO — pendiente Flow.cl
 ├── lib/
-│   └── supabase/
-│       └── server.ts           ← cliente Supabase para server components
-└── .env.local                  ← claves de Supabase
+│   ├── supabase/
+│   │   ├── client.ts                ← ✅ singleton para browser client
+│   │   └── server.ts                ← ✅ createSupabaseServer(), getUser(), getRol(), getClientEmail()
+│   └── payments/
+│       └── flow.ts                  ← mock activo, flowProcessPayment() pendiente
+└── types/
+    └── index.ts
 ```
 
 ## Base de datos (Supabase)
-8 tablas ya creadas con RLS activado:
-- `profiles` — todos los usuarios (campos: id, auth_user_id, full_name, phone, avatar_url, is_client, is_provider, created_at)
-- `provider_profiles` — datos extra de proveedores (bio, rut, verified, rating_avg)
-- `services` — servicios que ofrece cada proveedor (title, category_id, price_clp, duration_min)
+8 tablas con RLS activado:
+- `profiles` — todos los usuarios (id, auth_user_id, full_name, phone, is_client, is_provider, is_admin)
+- `provider_profiles` — datos extra de proveedores (bio, rut, verified, rating_avg, total_reviews)
+- `services` — servicios que ofrece cada proveedor (title, category_id, price_clp, active)
 - `provider_zones` — comunas donde trabaja cada proveedor
-- `bookings` — reservas entre cliente y proveedor (status: pendiente/confirmado/en_curso/completado/cancelado)
+- `solicitudes` — pedidos publicados por clientes
+- `propuestas` — ofertas de proveedores a solicitudes (estado: pendiente/aceptada/rechazada, campo: descartada_por_proveedor)
+- `bookings` — reservas confirmadas (status: confirmado/en_proceso/completado/cancelado)
 - `reviews` — reseñas post-servicio (rating 1-5)
 - `transactions` — pagos via Flow.cl
-- `categories` — categorías de servicios (gasfitería, electricidad, jardinería, etc.)
+- `categories` — categorías de servicios
 
-## Modelo de usuarios
-Un usuario puede ser cliente Y proveedor al mismo tiempo:
-- Al registrarse → `is_client: true`, `is_provider: false`
-- Para ofrecer servicios → completa perfil de proveedor y espera verificación del admin
-- Una vez verificado → `is_provider: true`, puede cambiar entre modo cliente y modo proveedor
+**Pendiente en DB:**
+- 🔴 Trigger `trg_recalcular_rating`: recalcular `rating_avg` y `total_reviews` en `provider_profiles` al insertar en `reviews` (SQL listo en doc de instrucciones 4.3)
+- 🔴 Índices compuestos en `bookings` y `propuestas` (SQL listo en doc de instrucciones 4.3)
 
-## Autenticación
-- Sin contraseñas — solo email + código OTP de 6 dígitos
-- Login y registro en la misma página `/login`
-- Al autenticarse por primera vez → se crea automáticamente su fila en `profiles` (via trigger en Supabase)
-- Redirección post-login:
-  - Si is_provider: true → `/proveedor`
-  - Si solo is_client: true → `/cliente`
-  - Si es admin → `/admin`
+## Estado de seguridad (Auditoría Abril 2026)
 
-## Protección de rutas (proxy.ts)
-- Rutas públicas: `/`, `/login`
-- `/admin` → solo admins
-- `/proveedor` → solo usuarios con is_provider: true
-- `/cliente` → usuarios autenticados
+### ✅ Resuelto
+- Autorización en `/api/bookings/completar` — 3 capas: auth → is_provider → ownership
+- Endpoint `/api/bookings/en-proceso` — mismo patrón
+- Indicadores reales en dashboard proveedor (trabajos completados, ganancias del mes)
+- Solicitudes descartadas persistidas en DB (`descartada_por_proveedor` en propuestas)
+- Singleton Supabase browser client (`lib/supabase/client.ts`)
+- Helpers `getUser()`, `getRol()`, `getClientEmail()` en `lib/supabase/server.ts`
+- `aprobar-proveedor/route.ts` usa `createSupabaseServer()` con Promise.all()
+- Fix TypeScript strict: `implicit any` en `agenda/page.tsx` y `ganancias/page.tsx`
+- Deploy en Vercel funcionando en producción ✅
+
+### 🔴 Pendiente crítico
+- **Webhook Flow.cl** (`/api/webhooks/pagos/`) — carpeta vacía, sin integración real de pagos
+- **Service Role Key** en `completar/route.ts` — pendiente mover a Edge Function
+
+### 🟡 Pendiente medio
+- Trigger DB `rating_avg` (SQL documentado)
+- Índices compuestos en `bookings` y `propuestas` (SQL documentado)
+- Notificación email al proveedor cuando admin lo aprueba
+- Rate limiting OTP en Supabase Auth Dashboard
+- Fix `mis-pedidos/page.tsx`: eliminar cálculo manual de `rating_avg` (esperar trigger DB primero)
 
 ## Convenciones de código
-- Server Components por defecto en Next.js App Router
-- Client Components solo cuando se necesita interactividad (formularios, estado)
-- Siempre usar `lib/supabase/server.ts` para queries en el servidor
-- Tailwind para todos los estilos
-- TypeScript estricto
+- **Siempre** usar `getSupabaseBrowserClient()` de `lib/supabase/client.ts` en Client Components (nunca instanciar `createBrowserClient()` directamente)
+- **Siempre** usar `createSupabaseServer()` de `lib/supabase/server.ts` en route handlers y Server Components
+- **Nunca** usar `SUPABASE_SERVICE_ROLE_KEY` fuera de `lib/supabase/server.ts`
+- TypeScript strict: tipar resultados de queries Supabase explícitamente (`as { data: Tipo[] | null }`)
+- Correr `npm run build` localmente antes de cada push para atrapar errores de TS
 
-## Lo que viene a construir ahora
-1. Página de login/registro con OTP por email (`app/(auth)/login/page.tsx`)
-2. Portal cliente — búsqueda de proveedores por comuna
-3. Portal proveedor — gestión de servicios y agenda
-4. Portal admin — dashboard de gestión
-5. Integración Flow.cl para pagos
-6. Deploy en Vercel
+## Modelo de negocio
+- **Take rate**: 12–15% sobre cada transacción completada (cobro automático via Flow.cl)
+- **Suscripción Pro Proveedor**: $9.990 CLP/mes → reduce comisión a 8% + badge verificado
+- **Leads pagados** (fase 2): $990–$2.990 CLP por solicitud desbloqueada
+
+## Próximos pasos priorizados
+1. 🔴 Implementar webhook Flow.cl con validación HMAC
+2. 🔴 Mover Service Role Key a Supabase Edge Function
+3. 🟡 Ejecutar SQL de trigger `rating_avg` en Supabase
+4. 🟡 Ejecutar SQL de índices en `bookings` y `propuestas`
+5. 🟡 Notificación email al proveedor aprobado
+6. 🟡 Rate limiting OTP en Supabase Auth Dashboard
+7. 🟢 Supabase Realtime para notificaciones en tiempo real
+8. 🟢 SEO: páginas por categoría + comuna
+9. 🟢 Tests E2E con Playwright (flujos críticos)
