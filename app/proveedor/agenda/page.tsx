@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 
 type Trabajo = {
   id: string
@@ -29,7 +29,7 @@ export default function AgendaPage() {
   const [trabajos, setTrabajos] = useState<Trabajo[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState('proximos')
-  const sb = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const sb = getSupabaseBrowserClient()
 
   const loadData = useCallback(async () => {
     const { data: { user } } = await sb.auth.getUser()
@@ -39,7 +39,7 @@ export default function AgendaPage() {
     const { data: pp } = await sb.from('provider_profiles').select('id').eq('profile_id', p.id).single()
     if (!pp) { setLoading(false); return }
     const { data: pr } = await sb.from('propuestas').select('id').eq('proveedor_id', pp.id).eq('estado', 'aceptada')
-    const ids = pr?.map(x => x.id) ?? []
+    const ids = pr?.map((x: { id: string }) => x.id) ?? []
     if (!ids.length) { setLoading(false); return }
     const { data } = await sb.from('bookings')
       .select('id, scheduled_at, address, comuna, total_clp, status, propuestas!propuesta_id ( solicitudes!solicitud_id ( categories ( name ), profiles!cliente_id ( full_name ) ) )')
