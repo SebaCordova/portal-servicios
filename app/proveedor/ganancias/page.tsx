@@ -29,8 +29,8 @@ export default function GananciasPage() {
     if (!p) return
     const { data: pp } = await sb.from('provider_profiles').select('id').eq('profile_id', p.id).single()
     if (!pp) { setLoading(false); return }
-    const { data: pr } = await sb.from('propuestas').select('id').eq('proveedor_id', pp.id).eq('estado', 'aceptada')
-    const ids = pr?.map(x => x.id) ?? []
+    const prResult = await sb.from('propuestas').select('id').eq('proveedor_id', pp.id).eq('estado', 'aceptada')
+    const ids: string[] = (prResult.data ?? []).map((x: { id: string }) => x.id)
     if (!ids.length) { setLoading(false); return }
     const { data } = await sb.from('bookings')
       .select('id, scheduled_at, total_clp, status, propuestas!propuesta_id ( solicitudes!solicitud_id ( categories ( name ) ) )')
