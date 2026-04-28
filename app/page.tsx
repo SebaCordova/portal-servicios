@@ -62,19 +62,35 @@ export default function HomePage() {
     loadData()
   }, [])
 
-  function handleBusqueda(e: React.FormEvent) {
+  async function handleBusqueda(e: React.FormEvent) {
     e.preventDefault()
     const texto = busqueda.trim().toLowerCase()
     setSinResultados(false)
     if (!texto) return
-    // Buscar en categorías primero
+
+    // 1. Buscar categoría por nombre exacto
     const exacta = categorias.find(c => c.name.toLowerCase().startsWith(texto))
     if (exacta) { window.location.href = `/categorias/${exacta.slug}`; return }
+
+    // 2. Buscar categoría por coincidencia parcial
     const parcial = categorias.find(c => c.name.toLowerCase().includes(texto))
     if (parcial) { window.location.href = `/categorias/${parcial.slug}`; return }
-    // Si no hay categoría, redirigir a cuenta/negocio para que el proveedor actualice su perfil
-    // o buscar directamente en la URL con el término
-    window.location.href = `/categorias?q=${encodeURIComponent(busqueda.trim())}`
+
+    // 3. Buscar proveedores por bio/descripción en Supabase
+    const { data: provsMatch } = await supabase
+      .from('provider_profiles')
+      .select('id')
+      .eq('verified', true)
+      .ilike('bio', `%${texto}%`)
+      .limit(1)
+
+    if (provsMatch && provsMatch.length > 0) {
+      window.location.href = `/categorias?q=${encodeURIComponent(busqueda.trim())}`
+      return
+    }
+
+    // 4. Sin resultados
+    setSinResultados(true)
   }
 
   const tieneContenido = [1,2,3].some(i => cms[`contenido_${i}_titulo`])
@@ -102,14 +118,18 @@ export default function HomePage() {
             {cms['hero_subtitulo'] ?? 'Encuentra profesionales verificados cerca de ti'}
           </p>
           <form onSubmit={handleBusqueda} style={{ display: 'flex', maxWidth: '560px', margin: '0 auto', boxShadow: '0 4px 24px rgba(0,0,0,0.3)', borderRadius: '10px', overflow: 'hidden' }}>
-            <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            <input type="text" value={busqueda} onChange={e => { setBusqueda(e.target.value); setSinResultados(false) }}
               placeholder="¿Qué servicio necesitas?"
               style={{ flex: 1, padding: '16px 20px', border: 'none', fontSize: '15px', color: '#222', outline: 'none', fontFamily: 'inherit', background: '#fff' }} />
             <button type="submit" style={{ padding: '16px 24px', background: '#1dbf73', color: '#fff', border: 'none', fontSize: '15px', fontWeight: '700', cursor: 'pointer', fontFamily: 'inherit' }}>
               {cms['hero_cta'] ?? 'Buscar'}
             </button>
           </form>
-          {sinResultados && <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>No encontramos esa categoría. Prueba con alguno de los servicios listados abajo.</p>}
+          {sinResultados && (
+            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px', marginTop: '12px' }}>
+              No encontramos resultados para "{busqueda}". Prueba con otras palabras o elige una categoría abajo.
+            </p>
+          )}
         </div>
       </section>
 
