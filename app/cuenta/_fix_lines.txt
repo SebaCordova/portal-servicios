@@ -1,0 +1,7 @@
+          const { data: svcsRaw } = await supabase.from('services').select('category_id').eq('provider_id', pp.id)
+          const svcs = svcsRaw as {category_id: string}[] | null
+          setCats((svcs ?? []).map(s => s.category_id))
+
+          const { data: zonesRaw } = await supabase.from('provider_zones').select('comuna').eq('provider_id', pp.id)
+          const zones = zonesRaw as {comuna: string}[] | null
+          setComunas((zones ?? []).map(z => z.comuna))
