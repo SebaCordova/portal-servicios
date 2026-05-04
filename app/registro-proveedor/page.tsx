@@ -1,9 +1,11 @@
 'use client'
 import { useState } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
+import { getSupabaseBrowserClient } from '@/lib/supabase/client'
 import { COMUNAS_RM } from '@/lib/constants'
 import { useCategorias } from '@/lib/hooks/useCategorias'
 import { validarRut, formatearRut } from '@/lib/utils/validators'
+
+export const PENDING_REGISTRATION_KEY = 'serviChile_pending_provider_registration'
 
 const inp: React.CSSProperties = { width:'100%', padding:'11px 14px', border:'1.5px solid #ddd', borderRadius:'8px', fontSize:'14px', color:'#222', outline:'none', boxSizing:'border-box', fontFamily:'inherit', background:'#fff' }
 const lbl: React.CSSProperties = { display:'block', fontSize:'13px', fontWeight:'500', color:'#444', marginBottom:'6px' }
@@ -22,7 +24,6 @@ export default function RegistroProveedorPage() {
   const [cats, setCats]           = useState<string[]>([])
   const [bio, setBio]             = useState('')
   const { categorias }            = useCategorias()
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
 
   function handleRut(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value; setRut(v)
@@ -35,11 +36,27 @@ export default function RegistroProveedorPage() {
     if (!firstName||!lastName||!email||!phone||!rut||!comuna||cats.length===0) { setError('Completa todos los campos obligatorios.'); return }
     if (!validarRut(rut)) { setError('RUT inválido.'); return }
     setLoading(true); setError('')
-    const { error: err } = await supabase.auth.signInWithOtp({ email, options: {
-      shouldCreateUser: true,
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL??'http://localhost:3000'}/auth/callback`,
-      data: { full_name:`${firstName.trim()} ${lastName.trim()}`, first_name:firstName.trim(), last_name:lastName.trim(), phone, rut:formatearRut(rut), comuna, is_provider_applicant:true, categorias:JSON.stringify(cats), bio }
-    }})
+
+    // Guardar datos en sessionStorage — no viajan en el JWT
+    try {
+      sessionStorage.setItem(PENDING_REGISTRATION_KEY, JSON.stringify({
+        firstName: firstName.trim(), lastName: lastName.trim(),
+        phone, rut: formatearRut(rut), comuna, categorias: cats, bio: bio.trim(),
+      }))
+    } catch (err) {
+      console.warn('[registro-proveedor] sessionStorage no disponible:', err)
+    }
+
+    // OTP solo con email — sin datos sensibles en user_metadata
+    const supabase = getSupabaseBrowserClient()
+    const { error: err } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?intent=provider_registration`,
+        // ⚠️ Sin data:{} — RUT/phone van al endpoint POST autenticado, no al JWT
+      },
+    })
     if (err) { setError('No pudimos enviar el link. Intenta nuevamente.'); setLoading(false); return }
     setSent(true); setLoading(false)
   }
@@ -53,8 +70,8 @@ export default function RegistroProveedorPage() {
         <h2 style={{fontSize:'18px',fontWeight:'700',color:'#222',margin:'0 0 0.8rem'}}>Revisa tu email</h2>
         <p style={{color:'#666',fontSize:'14px',lineHeight:'1.6',margin:'0 0 0.5rem'}}>Enviamos un link a</p>
         <p style={{color:'#222',fontWeight:'600',fontSize:'15px',margin:'0 0 1rem'}}>{email}</p>
-        <p style={{color:'#aaa',fontSize:'13px',lineHeight:'1.6',margin:'0 0 1.5rem'}}>Al hacer clic completarás tu registro y podrás ingresar los datos de tu negocio.</p>
-        <button onClick={()=>setSent(false)} style={{background:'none',border:'none',color:'#1dbf73',fontSize:'13px',cursor:'pointer',fontFamily:'inherit'}}>← Volver</button>
+        <p style={{color:'#aaa',fontSize:'13px',lineHeight:'1.6',margin:'0 0 1.5rem'}}>Al hacer clic tu cuenta se creará y podrás ingresar.</p>
+        <button onClick={()=>setSent(false)} style={{background:'none',border:'none',color:'#1dbf73',fontSize:'13px',cursor:'pointer',fontFamily:'inherit'}}>← Volver al formulario</button>
       </div>
     </main>
   )
