@@ -27,6 +27,9 @@ export default function MisPedidosPage() {
   const [cancelando, setCancelando] = useState<string | null>(null)
   const [razon, setRazon] = useState('')
   const [resenas, setResenas] = useState<Record<string, ResenaState>>({})
+  const [rechazando, setRechazando] = useState<string | null>(null)
+  const [motivoRechazo, setMotivoRechazo] = useState('')
+  const [accionandoPago, setAccionandoPago] = useState<string | null>(null)
 
   const supabase = getSupabaseBrowserClient()
 
@@ -119,6 +122,28 @@ export default function MisPedidosPage() {
 
   function setResena(bookingId: string, patch: Partial<ResenaState>) {
     setResenas(prev => ({ ...prev, [bookingId]: { ...{ rating: null, comentario: '' }, ...prev[bookingId], ...patch } }))
+  }
+
+  async function validarTrabajo(bookingId: string) {
+    setAccionandoPago(bookingId)
+    const res = await fetch('/api/bookings/validar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId })
+    })
+    if (res.ok) { await cargar() } else { alert('Error al validar. Intenta nuevamente.') }
+    setAccionandoPago(null)
+  }
+
+  async function rechazarTrabajo(bookingId: string) {
+    if (!motivoRechazo.trim()) return
+    setAccionandoPago(bookingId)
+    const res = await fetch('/api/bookings/rechazar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId, motivo: motivoRechazo })
+    })
+    if (res.ok) { setRechazando(null); setMotivoRechazo(''); await cargar() }
+    else { alert('Error al registrar el rechazo. Intenta nuevamente.') }
+    setAccionandoPago(null)
   }
 
   function formatFecha(f: string) { return new Date(f + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' }) }
@@ -257,7 +282,57 @@ export default function MisPedidosPage() {
                                 </div>
                               )}
 
-                              {esAceptada && bookingId && booking?.status === 'completado' && (booking?.reviews?.length ?? 0) === 0 && (
+                              {esAceptada && bookingId && booking?.status === 'completado' && (
+                                <div style={{ marginTop: '12px', padding: '14px', background: '#fef3c7', borderRadius: '8px', border: '1px solid #fcd34d' }}>
+                                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#92400e', margin: '0 0 4px' }}>El proveedor marcó el trabajo como completado</p>
+                                  <p style={{ fontSize: '12px', color: '#92400e', margin: '0 0 12px' }}>Tienes 48 horas para validar o rechazar. Si no respondes, el pago se procesará automáticamente.</p>
+                                  {rechazando !== bookingId ? (
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                      <button onClick={() => validarTrabajo(bookingId)} disabled={accionandoPago === bookingId}
+                                        style={{ flex: 1, padding: '10px', background: '#1dbf73', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                        {accionandoPago === bookingId ? 'Procesando...' : 'Validar y pagar'}
+                                      </button>
+                                      <button onClick={() => setRechazando(bookingId)}
+                                        style={{ flex: 1, padding: '10px', background: '#fff', color: '#e53935', border: '1.5px solid #e53935', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                        Rechazar trabajo
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <p style={{ fontSize: '13px', color: '#444', margin: '0 0 8px', fontWeight: '500' }}>Por que rechazas el trabajo?</p>
+                                      <textarea value={motivoRechazo} onChange={e => setMotivoRechazo(e.target.value)}
+                                        placeholder='Describe el problema en detalle...' rows={3}
+                                        style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #ddd', borderRadius: '8px', fontSize: '13px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', marginBottom: '8px' }} />
+                                      <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button onClick={() => { setRechazando(null); setMotivoRechazo('') }}
+                                          style={{ flex: 1, padding: '9px', background: '#f5f5f5', color: '#444', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                          Volver
+                                        </button>
+                                        <button onClick={() => rechazarTrabajo(bookingId)} disabled={accionandoPago === bookingId}
+                                          style={{ flex: 1, padding: '9px', background: '#e53935', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: 'inherit' }}>
+                                          {accionandoPago === bookingId ? 'Enviando...' : 'Confirmar rechazo'}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {esAceptada && bookingId && booking?.status === 'pendiente_pago' && (
+                                <div style={{ marginTop: '12px', padding: '14px', background: '#d1fae5', borderRadius: '8px', border: '1px solid #6ee7b7' }}>
+                                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#065f46', margin: '0 0 4px' }}>Trabajo validado — procesando pago</p>
+                                  <p style={{ fontSize: '12px', color: '#065f46', margin: 0 }}>El pago al proveedor se procesará en las próximas horas.</p>
+                                </div>
+                              )}
+
+                              {esAceptada && bookingId && booking?.status === 'en_disputa' && (
+                                <div style={{ marginTop: '12px', padding: '14px', background: '#fee2e2', borderRadius: '8px', border: '1px solid #fca5a5' }}>
+                                  <p style={{ fontSize: '13px', fontWeight: '600', color: '#991b1b', margin: '0 0 4px' }}>Disputa en revision</p>
+                                  <p style={{ fontSize: '12px', color: '#991b1b', margin: 0 }}>Nuestro equipo revisara tu caso en 48 horas y te notificara por email.</p>
+                                </div>
+                              )}
+
+                              {esAceptada && bookingId && booking?.status === 'pagado' && (booking?.reviews?.length ?? 0) === 0 && (
                                 <div style={{ marginTop: '12px', padding: '14px', background: '#f0fdf7', borderRadius: '8px', border: '1px solid #d1fae5' }}>
                                   <p style={{ fontSize: '13px', fontWeight: '600', color: '#065f46', margin: '0 0 10px' }}>¿Cómo te fue con este servicio?</p>
                                   <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
